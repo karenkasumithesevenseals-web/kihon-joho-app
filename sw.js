@@ -11,7 +11,7 @@
  *   （古い保存分が消えて、新しいファイルが iPhone などに届く）。
  * このファイルは index.html から登録される。
  */
-const CACHE_NAME = "kihon-joho-cache-v2";
+const CACHE_NAME = "kihon-joho-cache-v3";
 
 // 電波がなくても使えるよう保存しておくファイルの一覧。
 // ファイルを足したら、ここにも書き足す（run-sw-check.js が、足りない・ないファイルを見つける）
@@ -24,7 +24,12 @@ const CACHE_ASSETS = [
   "./sync.js",
   "./firebase-config.js",
   "./manifest.json",
-  "./data/questions-sample.js",
+  "./data/questions-r08.js",
+  "./assets/images/r08/q01-table.png",
+  "./assets/images/r08/q06-circuit-charts.png",
+  "./assets/images/r08/q06-notation.png",
+  "./assets/images/r08/q07-sql-table.png",
+  "./assets/images/r08/q17-table.png",
   "./assets/icons/icon-192.png",
   "./assets/icons/icon-512.png",
   "./assets/icons/apple-touch-icon.png"

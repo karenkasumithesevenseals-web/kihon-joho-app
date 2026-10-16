@@ -236,11 +236,12 @@ const FeLogic = (function () {
    * 合格の目安（練習用）を出す。初めて見た問題の直近の正答率で決める。
    * @param {Map} results collectQuestionResults の結果
    * @param {object[]} questions 問題データ
-   * @param {{minCount?:number}} [options] minCount: 判定に必要な問題数（動作確認用に変えられる）
+   * @param {{minCount?:number}} [options] minCount: 判定に必要な問題数（動作確認用に変えられる。問題の総数を超えない）
    * @returns {object} 足りないとき {status:'insufficient', needed}、足りるとき {status:'ok', rate, gapPercent, sampleSize}
    */
   function passEstimate(results, questions, options) {
-    var minCount = (options && options.minCount) || MIN_FIRST_ANSWERS;
+    // 問題が少ないときは、問題の総数を上限にする（20問しかなくても、20問解けば目安が出る）。0問のときは判定しない
+    var minCount = Math.max(1, Math.min((options && options.minCount) || MIN_FIRST_ANSWERS, questions.length));
     var known = {};
     questions.forEach(function (q) { known[q.id] = true; });
     var firsts = [];

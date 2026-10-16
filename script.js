@@ -46,6 +46,24 @@
    */
   function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
 
+  /**
+   * 問題の図・表の画像を、入れ物に並べる。画像がない問題は、入れ物を空にして隠す。
+   * 画像が読み込めないときは、説明文（alt）が表示される。
+   * @param {HTMLElement} box 画像を入れる入れ物
+   * @param {object} q 問題（images: [{src, alt}] を持つことがある）
+   */
+  function renderImages(box, q) {
+    clear(box);
+    var list = Array.isArray(q.images) ? q.images : [];
+    list.forEach(function (im) {
+      var img = el('img', null, 'qimg');
+      img.src = im.src;
+      img.alt = im.alt || '';
+      box.appendChild(img);
+    });
+    box.hidden = list.length === 0;
+  }
+
   // ② 保存（端末の localStorage） ---------------------------------------
 
   /**
@@ -340,6 +358,7 @@
     if (isNewQuestion) {
       session.wasSeen = L.collectQuestionResults(answers).has(q.id);
       buildChoices(q);
+      renderImages($('q-images'), q);
       session.builtIndex = session.index;
     }
     body.hidden = false;
@@ -347,7 +366,9 @@
     $('q-progress').textContent = (L.CATEGORY_LABELS[q.category] || '') + '系 ・ ' + q.sub + ' ・ ' + (session.index + 1) + ' / ' + session.ids.length;
     $('q-tag').textContent = session.wasSeen ? '復習' : '新しい問題';
     $('q-text').textContent = q.text;
-    $('q-source').textContent = q.isSample ? '画面確認用の架空の問題です。' : '出典: IPA（情報処理推進機構）の公開問題';
+    $('q-source').textContent = q.isSample
+      ? '画面確認用の架空の問題です。'
+      : '出典: IPA（情報処理推進機構）令和8年度 基本情報技術者試験 公開問題。解説は独自に書いたもので、IPA 公式ではありません。';
     paintChoices(q);
 
     var expl = $('q-expl');
@@ -669,7 +690,7 @@
     var minutes = Math.round(L.examLimitMs(total, L.EXAM_CONFIG) / 60000);
     text.textContent = '本番と同じ形式の練習です。' + total + '問・' + minutes + '分。試験中は正解と解説を出しません。';
     note.textContent = total < L.EXAM_CONFIG.count
-      ? 'いまは問題が少ないため ' + total + '問・' + minutes + '分です（本物の問題を足すと ' + L.EXAM_CONFIG.count + '問・' + L.EXAM_CONFIG.minutes + '分になります）。'
+      ? 'いまは問題が少ないため ' + total + '問・' + minutes + '分です（問題を足すと ' + L.EXAM_CONFIG.count + '問・' + L.EXAM_CONFIG.minutes + '分になります）。'
       : '終わると、答えた分を成績に足します。';
     start.hidden = false;
   }
@@ -743,6 +764,7 @@
     var isNewQuestion = examBuilt !== exam.current;
     if (isNewQuestion) {
       buildExamChoices(q);
+      renderImages($('x-images'), q);
       examBuilt = exam.current;
     }
     $('x-progress').textContent = '問' + (exam.current + 1) + ' / ' + exam.qids.length + ' ・ ' + (L.CATEGORY_LABELS[q.category] || '') + '系';
@@ -868,6 +890,9 @@
       var card = el('div', null, 'card');
       card.appendChild(el('b', '問' + (examResult.qids.indexOf(w.qid) + 1) + '　' + (L.CATEGORY_LABELS[q.category] || '') + '系 ・ ' + q.sub));
       card.appendChild(el('p', q.text, 'qtext'));
+      var imgs = el('div', null, 'qimages');
+      renderImages(imgs, q);
+      card.appendChild(imgs);
       card.appendChild(el('p', 'あなたの答え: ' + (w.choice >= 0 ? MARKS[w.choice] + ' ' + q.choices[w.choice] : '未回答'), 'fine'));
       card.appendChild(el('p', '正解: ' + MARKS[q.answerIndex] + ' ' + q.choices[q.answerIndex], 'fine'));
       var ex = el('div', null, 'expl');

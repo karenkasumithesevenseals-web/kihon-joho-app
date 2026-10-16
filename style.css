@@ -84,7 +84,7 @@ button.bar-row{cursor:pointer;min-height:40px}
 .qhead{display:flex;justify-content:space-between;align-items:center;font-size:.9em;color:var(--sub);gap:8px;flex-wrap:wrap;margin-bottom:10px}
 .quizgrid{display:flex;flex-direction:column;gap:14px}
 .qmain,.qside{display:flex;flex-direction:column;gap:12px;min-width:0}
-.qtext{font-size:1.1em;margin:0}
+.qtext{font-size:1.1em;margin:0;white-space:pre-line}
 .choices{display:flex;flex-direction:column;gap:8px}
 .choice{display:flex;gap:10px;align-items:flex-start;font:inherit;text-align:left;width:100%;color:var(--ink);
   background:var(--card);border:2px solid var(--line);border-radius:10px;padding:12px;cursor:pointer;min-height:56px}
@@ -101,6 +101,11 @@ button.bar-row{cursor:pointer;min-height:40px}
 .expl{border-left:4px solid var(--accent);background:var(--accent-soft);padding:12px 14px;border-radius:0 10px 10px 0}
 .expl p{margin:6px 0 0}
 .action{flex:none;display:flex;gap:10px;padding:12px max(16px,env(safe-area-inset-right,0px)) 12px max(16px,env(safe-area-inset-left,0px));background:var(--card);border-top:1px solid var(--line)}
+
+/* 問題の図・表の画像 */
+.qimages{display:flex;flex-direction:column;gap:10px}
+.qimages[hidden]{display:none}
+.qimg{max-width:100%;height:auto;align-self:flex-start;background:#fff;border:1px solid var(--line);border-radius:8px}
 
 /* 模擬試験 */
 .timer{font-family:var(--mono);font-weight:700}
