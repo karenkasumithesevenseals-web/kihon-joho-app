@@ -1,7 +1,7 @@
 /**
  * questions-r08.js … 令和8年度 基本情報技術者試験 科目A の公開問題（IPA 公開・問1〜問20 の全20問）のデータ。
  *
- * 役割: 問題文・選択肢・正解・解説を並べたもの。index.html から読み込まれ、script.js が FE_QUESTIONS から取り出して出題する。
+ * 役割: 問題文・選択肢・正解・解説を並べたもの。index.html から読み込まれ、script.js が FE_QUESTIONS_R08 などの年度ごとの一覧を合わせて出題する。
  * 読み方: 1問が { id, category, sub, text, choices, answerIndex, explanation, images, sourceUrl }。
  *   category は technology(テクノロジ系) / management(マネジメント系) / strategy(ストラテジ系)。
  *   sub は小分野の名前（成績画面の小分野ごとの正答率に出る）。
@@ -12,7 +12,7 @@
  */
 const R08A_SOURCE_URL = "https://www.ipa.go.jp/shiken/mondai-kaiotu/sg_fe/koukai/rcu1hd0000012qj6-att/2026r08_fe_kamoku_a_qs.pdf";
 
-const FE_QUESTIONS = [
+const FE_QUESTIONS_R08 = [
   {
     id: "R08A_Q01", category: "technology", sub: "基礎理論",
     text: "入力されたビットに対して出力されるビットが0か1のいずれかである確率を遷移確率という。遷移確率を表にしたとき，a，b，c，dの関係はどれか。",
@@ -242,4 +242,4 @@ const FE_QUESTIONS = [
   }
 ];
 
-if (typeof module !== 'undefined' && module.exports) { module.exports = FE_QUESTIONS; }
+if (typeof module !== 'undefined' && module.exports) { module.exports = FE_QUESTIONS_R08; }

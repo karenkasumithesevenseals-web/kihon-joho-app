@@ -1,14 +1,15 @@
 /**
  * script.js … 画面の動きと、端末への保存。
  * 読み方: ①道具 ②保存 ③画面の切り替え ④ホーム ⑤問題 ⑥成績 ⑦設定 ⑨クラウド同期 ⑩模擬試験 ⑧はじまり の順に並んでいる。
- * 計算は logic.js（FeLogic）、問題は data/（FE_QUESTIONS）にある。
+ * 計算は logic.js（FeLogic）、問題は data/（FE_QUESTIONS_R05 など、年度ごと）にある。
  * 画面の文字は textContent で入れる（innerHTML は使わない）。
  */
 (function () {
   'use strict';
 
   var L = FeLogic;
-  var QUESTIONS = FE_QUESTIONS;
+  /** 全年度の問題（令和5〜8年度の科目A 公開問題）を1つの一覧に合わせたもの。 */
+  var QUESTIONS = [].concat(FE_QUESTIONS_R05, FE_QUESTIONS_R06, FE_QUESTIONS_R07, FE_QUESTIONS_R08);
   var KEYS = { answers: 'feAnswers', settings: 'feSettings', device: 'feDeviceId', exam: 'feExamState' };
   var MARKS = ['ア', 'イ', 'ウ', 'エ'];
   var DAILY_GOAL = 20;
@@ -368,7 +369,7 @@
     $('q-text').textContent = q.text;
     $('q-source').textContent = q.isSample
       ? '画面確認用の架空の問題です。'
-      : '出典: IPA（情報処理推進機構）令和8年度 基本情報技術者試験 公開問題。解説は独自に書いたもので、IPA 公式ではありません。';
+      : '出典: IPA（情報処理推進機構）基本情報技術者試験 科目A 公開問題（令和5〜8年度）。解説は独自に書いたもので、IPA 公式ではありません。';
     paintChoices(q);
 
     var expl = $('q-expl');

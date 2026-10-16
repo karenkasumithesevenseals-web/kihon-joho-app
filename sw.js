@@ -11,7 +11,7 @@
  *   （古い保存分が消えて、新しいファイルが iPhone などに届く）。
  * このファイルは index.html から登録される。
  */
-const CACHE_NAME = "kihon-joho-cache-v3";
+const CACHE_NAME = "kihon-joho-cache-v4";
 
 // 電波がなくても使えるよう保存しておくファイルの一覧。
 // ファイルを足したら、ここにも書き足す（run-sw-check.js が、足りない・ないファイルを見つける）
@@ -24,7 +24,22 @@ const CACHE_ASSETS = [
   "./sync.js",
   "./firebase-config.js",
   "./manifest.json",
+  "./data/questions-r05.js",
+  "./data/questions-r06.js",
+  "./data/questions-r07.js",
   "./data/questions-r08.js",
+  "./assets/images/r05/q02-tables.png",
+  "./assets/images/r05/q10-diagram.png",
+  "./assets/images/r05/q11-flowchart.png",
+  "./assets/images/r05/q13-figure.png",
+  "./assets/images/r06/q01-truth-tables.png",
+  "./assets/images/r06/q03-cache.png",
+  "./assets/images/r06/q13-arrow.png",
+  "./assets/images/r06/q19-scatter.png",
+  "./assets/images/r07/q03-tree.png",
+  "./assets/images/r07/q06-sql-table.png",
+  "./assets/images/r07/q14-pert.png",
+  "./assets/images/r07/q19-table.png",
   "./assets/images/r08/q01-table.png",
   "./assets/images/r08/q06-circuit-charts.png",
   "./assets/images/r08/q06-notation.png",
