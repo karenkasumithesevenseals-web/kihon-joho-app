@@ -1,0 +1,126 @@
+/* style.css … 見た目。色は :root の名前つきの値で決める（ダークモードにも対応）。
+   幅が 900px 以上（PC）になると、メニューが左側に出る。 */
+:root{
+  --bg:#eef1f4; --card:#ffffff; --ink:#1b2a36; --sub:#4d5e6b; --line:#d5dde3;
+  --accent:#0f6e6e; --accent-ink:#ffffff; --accent-soft:#dff0ef;
+  --ok:#1f7a45; --ok-soft:#dff3e5; --ng:#b3382c; --ng-soft:#f9e3e0;
+  --warn:#7a4500; --warn-soft:#fbecd0; --mark-ink:#ffffff; --low:#d9761c;
+  --font:"Hiragino Sans","Yu Gothic","Noto Sans JP",sans-serif; --mono:ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#12181d; --card:#1b242b; --ink:#e6edf2; --sub:#a9bac6; --line:#3a4955;
+  --accent:#4fc1bd; --accent-ink:#06201f; --accent-soft:#17383a;
+  --ok:#6fd49a; --ok-soft:#17382a; --ng:#ff9a8e; --ng-soft:#432420; --warn:#f0b968; --warn-soft:#3f2f12; --mark-ink:#06201f; --low:#f09a3e; color-scheme:dark}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--card);color:var(--ink);font-family:var(--font);line-height:1.6}
+
+.app{--fs:16px;font-size:var(--fs);display:flex;flex-direction:column;height:100vh;height:100dvh}
+.app.large{--fs:19px}
+.body{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column}
+.screens{flex:1;min-height:0;display:flex;flex-direction:column}
+button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.title:focus,.qtext:focus{outline:none}
+
+/* メニュー（スマホは下、PCは左） */
+.nav{display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+.nav button{flex:1;font:inherit;font-size:12.5px;color:var(--sub);background:none;border:0;padding:8px 2px;min-height:58px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px}
+.nav svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.nav button[aria-current="page"]{color:var(--accent);font-weight:700}
+.brand{display:none;font-weight:700;padding:6px 12px 14px}
+
+/* 同期の帯：ふだんは小さく、困ったときだけ目立たせる */
+.sync{display:flex;align-items:center;gap:8px;padding:6px 14px;font-size:13px;color:var(--sub);border-bottom:1px solid var(--line)}
+.sync .dot{width:9px;height:9px;border-radius:50%;background:var(--ok);flex:none}
+.sync.wait{background:var(--warn-soft);color:var(--warn);font-weight:700;padding:10px 14px}
+.sync.wait .dot{background:var(--warn)}
+
+/* 画面 */
+.screen{flex:1;min-height:0;overflow-y:auto;background:var(--bg);display:flex;flex-direction:column;gap:14px;
+  padding:16px max(16px,env(safe-area-inset-right,0px)) 16px max(16px,env(safe-area-inset-left,0px))}
+.screen.split{padding:0;overflow:hidden;gap:0}
+.scroll{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:14px;
+  padding:16px max(16px,env(safe-area-inset-right,0px)) 16px max(16px,env(safe-area-inset-left,0px))}
+.title{font-size:1.2em;font-weight:700;margin:0}
+.sub-title{font-size:1em;font-weight:700;margin:4px 0 0}
+
+/* 部品 */
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;min-width:0}
+.center{text-align:center}
+.pri{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;font:inherit;text-align:left;
+  background:var(--accent);color:var(--accent-ink);border:0;border-radius:10px;padding:16px;cursor:pointer;min-height:68px}
+.pri .pri-text{display:block}
+.pri b{font-size:1.1em;display:block}.pri small{display:block;font-size:.88em}
+.pri .big{font-family:var(--mono);font-size:30px;font-weight:500}
+.grid{display:grid;gap:10px;grid-template-columns:1fr}
+.tile{font:inherit;text-align:left;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;cursor:pointer;min-height:64px;width:100%}
+.tile b{display:block}.tile span{font-size:.88em;color:var(--sub)}
+.tile.soon{opacity:.75;cursor:default;border-style:dashed}
+.tag{display:inline-block;font-size:.8em;padding:1px 8px;border-radius:99px;background:var(--accent-soft);color:var(--accent);font-weight:700}
+.tag.warn{background:var(--warn-soft);color:var(--warn)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0}
+.kv dt{color:var(--sub)}.kv dd{margin:0}
+.fine{font-size:.88em;color:var(--sub);margin:6px 0 0}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.btn{font:inherit;font-size:.95em;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:10px 14px;cursor:pointer;min-height:48px}
+.btn.main{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700;flex:1}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn[aria-pressed="true"]{background:var(--warn-soft);border-color:var(--warn);color:var(--warn);font-weight:700}
+.field{font:inherit;font-size:16px;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);min-height:48px}
+
+/* 成績の棒 */
+.bars{display:flex;flex-direction:column;gap:2px;margin-top:8px}
+.bar-row{display:grid;grid-template-columns:8em 1fr 3.4em;align-items:center;gap:8px;font:inherit;font-size:.92em;width:100%;color:var(--ink);background:none;border:0;padding:4px 0;text-align:left}
+button.bar-row{cursor:pointer;min-height:40px}
+.bar{height:16px;background:var(--line);border-radius:8px;position:relative}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:8px}
+.bar i.low{background:var(--low)}
+.bar .pass{position:absolute;top:-3px;bottom:-3px;width:3px;background:var(--ink)}
+.num{font-family:var(--mono);text-align:right}
+.judge-main{font-size:1.4em;font-weight:700;margin:2px 0}
+
+/* 問題 */
+.qhead{display:flex;justify-content:space-between;align-items:center;font-size:.9em;color:var(--sub);gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.quizgrid{display:flex;flex-direction:column;gap:14px}
+.qmain,.qside{display:flex;flex-direction:column;gap:12px;min-width:0}
+.qtext{font-size:1.1em;margin:0}
+.choices{display:flex;flex-direction:column;gap:8px}
+.choice{display:flex;gap:10px;align-items:flex-start;font:inherit;text-align:left;width:100%;color:var(--ink);
+  background:var(--card);border:2px solid var(--line);border-radius:10px;padding:12px;cursor:pointer;min-height:56px}
+.choice .k{flex:none;width:1.9em;height:1.9em;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;font-size:.85em;font-weight:700}
+.choice .m{margin-left:auto;font-weight:700;white-space:nowrap}
+.choice[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.choice[aria-pressed="true"] .k{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.choice.right{border-color:var(--ok);background:var(--ok-soft)}
+.choice.right .k{background:var(--ok);color:var(--mark-ink);border-color:var(--ok)}
+.choice.right .m{color:var(--ok)}
+.choice.wrong{border-color:var(--ng);background:var(--ng-soft)}
+.choice.wrong .k{background:var(--ng);color:var(--mark-ink);border-color:var(--ng)}
+.choice.wrong .m{color:var(--ng)}
+.expl{border-left:4px solid var(--accent);background:var(--accent-soft);padding:12px 14px;border-radius:0 10px 10px 0}
+.expl p{margin:6px 0 0}
+.action{flex:none;display:flex;gap:10px;padding:12px max(16px,env(safe-area-inset-right,0px)) 12px max(16px,env(safe-area-inset-left,0px));background:var(--card);border-top:1px solid var(--line)}
+
+/* 模擬試験 */
+.timer{font-family:var(--mono);font-weight:700}
+.cells{display:grid;grid-template-columns:repeat(auto-fill,minmax(3.2em,1fr));gap:6px;margin-top:8px}
+.cell{font:inherit;font-size:.9em;min-height:44px;padding:0;border:2px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);cursor:pointer}
+.cell.done{background:var(--accent-soft);border-color:var(--accent);font-weight:700}
+.cell.now{outline:3px solid var(--ink);outline-offset:1px}
+
+/* PC（幅 900px 以上）：メニューを左に、問題は左に本文・右に解説 */
+@media (min-width:900px){
+  .app{flex-direction:row}
+  .nav{order:-1;flex-direction:column;width:210px;border-top:0;border-right:1px solid var(--line);padding:12px 8px;gap:4px;flex:none}
+  .nav button{flex:none;flex-direction:row;font-size:15px;gap:10px;padding:10px 12px;border-radius:8px;justify-content:flex-start;min-height:46px}
+  .nav button[aria-current="page"]{background:var(--accent-soft)}
+  .brand{display:block}
+  .screen,.scroll{padding:24px 32px}
+  .screen.split{padding:0}
+  .grid{grid-template-columns:repeat(2,1fr)}
+  .quizgrid{flex-direction:row;align-items:flex-start}
+  .qmain{flex:1;max-width:640px}
+  .qside{width:280px;flex:none}
+  .action{padding:12px 32px}
+}
