@@ -60,7 +60,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline
 .tag{display:inline-block;font-size:.8em;padding:1px 8px;border-radius:99px;background:var(--accent-soft);color:var(--accent);font-weight:700}
 .tag.warn{background:var(--warn-soft);color:var(--warn)}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0}
-.kv dt{color:var(--sub)}.kv dd{margin:0}
+.kv dt{color:var(--sub);white-space:nowrap}.kv dd{margin:0;min-width:0;overflow-wrap:anywhere}
 .fine{font-size:.88em;color:var(--sub);margin:6px 0 0}
 .row{display:flex;gap:10px;flex-wrap:wrap}
 .btn{font:inherit;font-size:.95em;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:10px 14px;cursor:pointer;min-height:48px}

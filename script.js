@@ -507,10 +507,15 @@
 
   // ⑨ クラウド同期 ----------------------------------------------------------
 
-  /** 設定画面の「クラウド同期」の枠を描く。 */
+  /**
+   * 設定画面の「クラウド同期」の枠を描く。
+   * 同期の部品を読み込めていないのに、電波がある（機内モードで起動して、あとから電波が戻った場合など）ときは、
+   * 「同期を読み込み直す」ボタンを出す（読み込みの失敗は、画面の中では覚えられたままなので、画面ごと読み込み直す）。
+   */
   function renderSyncCard() {
     var st = currentSyncStatus();
     $('sync-unavailable').hidden = sync.sdkReady;
+    $('sync-reload-btn').hidden = sync.sdkReady || navigator.onLine === false || document.readyState !== 'complete';
     $('sync-card-status').textContent = st.text;
     $('sync-account').textContent = sync.loggedIn ? sync.email : '（ログインしていません）';
     $('sync-login-btn').hidden = !sync.sdkReady || sync.loggedIn;
@@ -910,6 +915,9 @@
     window.FeSync.signIn();
   });
   $('sync-logout-btn').addEventListener('click', function () { if (window.FeSync) window.FeSync.signOutUser(); });
+  $('sync-reload-btn').addEventListener('click', function () { location.reload(); });
+  window.addEventListener('online', renderSyncCard);
+  window.addEventListener('offline', renderSyncCard);
   window.addEventListener('online', renderSyncBar);
   window.addEventListener('offline', renderSyncBar);
   document.addEventListener('fesync-ready', startSync);
