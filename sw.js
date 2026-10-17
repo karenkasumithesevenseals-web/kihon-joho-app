@@ -11,7 +11,7 @@
  *   （古い保存分が消えて、新しいファイルが iPhone などに届く）。
  * このファイルは index.html から登録される。
  */
-const CACHE_NAME = "kihon-joho-cache-v4";
+const CACHE_NAME = "kihon-joho-cache-v5";
 
 // 電波がなくても使えるよう保存しておくファイルの一覧。
 // ファイルを足したら、ここにも書き足す（run-sw-check.js が、足りない・ないファイルを見つける）
@@ -28,6 +28,7 @@ const CACHE_ASSETS = [
   "./data/questions-r06.js",
   "./data/questions-r07.js",
   "./data/questions-r08.js",
+  "./data/questions-r08b.js",
   "./assets/images/r05/q02-tables.png",
   "./assets/images/r05/q10-diagram.png",
   "./assets/images/r05/q11-flowchart.png",
@@ -45,6 +46,18 @@ const CACHE_ASSETS = [
   "./assets/images/r08/q06-notation.png",
   "./assets/images/r08/q07-sql-table.png",
   "./assets/images/r08/q17-table.png",
+  "./assets/images/r08b/guide-notation.png",
+  "./assets/images/r08b/guide-operators.png",
+  "./assets/images/r08b/q01-program.png",
+  "./assets/images/r08b/q02-program.png",
+  "./assets/images/r08b/q03-program.png",
+  "./assets/images/r08b/q04-fig1.png",
+  "./assets/images/r08b/q04-fig2.png",
+  "./assets/images/r08b/q04-program.png",
+  "./assets/images/r08b/q05-figure.png",
+  "./assets/images/r08b/q05-program.png",
+  "./assets/images/r08b/q06-rules.png",
+  "./assets/images/r08b/q06-table.png",
   "./assets/icons/icon-192.png",
   "./assets/icons/icon-512.png",
   "./assets/icons/apple-touch-icon.png"

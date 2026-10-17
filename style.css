@@ -107,6 +107,34 @@ button.bar-row{cursor:pointer;min-height:40px}
 .qimages[hidden]{display:none}
 .qimg{max-width:100%;height:auto;align-self:flex-start;background:#fff;border:1px solid var(--line);border-radius:8px}
 
+/* 科目B: 選択肢の改行（a と b を2行に分ける）・10個のときは少し詰める・解説の改行 */
+.choice .ct{min-width:0;white-space:pre-line;overflow-wrap:anywhere}
+.choice.many{padding:8px 12px;min-height:44px;gap:8px}
+.expl p.pre{white-space:pre-line}
+
+/* 科目B: プログラム・図・表の画像（読みやすい大きさで出し、はみ出す分は枠の中で横に動かす。押すと大きく見られる） */
+.qimages.scrollx{overflow-x:auto;align-items:flex-start}
+.imgbtn{display:block;flex:none;padding:0;border:0;background:none;cursor:zoom-in;text-align:left;font:inherit}
+.qimg.zoomable{display:block;max-width:none;height:auto}
+.imgbtn.full{width:100%;flex:none}
+.imgbtn.full .qimg{display:block;width:100%;max-width:100%;height:auto}
+.guide-list{margin:8px 0 0;padding-left:1.3em}
+.guide-list li{margin-bottom:6px}
+/* 暗い配色では、白い画像が目に刺さらないよう、少し暗くする（色を反転はしない） */
+@media (prefers-color-scheme:dark){.qimg,.zoom-body img{filter:brightness(.88)}}
+
+/* 窓（擬似言語の説明・画像の拡大）: スマホは全画面 */
+dialog.guide,dialog.zoom{position:fixed;inset:0;margin:0;padding:0;border:0;width:100%;height:100%;max-width:none;max-height:none;
+  background:var(--bg);color:var(--ink);z-index:20}
+dialog.guide{inset:0 0 0 auto}
+dialog.guide[open],dialog.zoom[open]{display:flex;flex-direction:column}
+.dlg-head{flex:none;display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--card);border-bottom:1px solid var(--line);
+  padding:8px max(16px,env(safe-area-inset-right,0px)) 8px max(16px,env(safe-area-inset-left,0px))}
+.dlg-body{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:12px;
+  padding:14px max(16px,env(safe-area-inset-right,0px)) 14px max(16px,env(safe-area-inset-left,0px))}
+.zoom-body{align-items:flex-start}
+.zoom-body img{display:block;max-width:none;width:auto;height:auto;background:#fff}
+
 /* 模擬試験 */
 .timer{font-family:var(--mono);font-weight:700}
 .cells{display:grid;grid-template-columns:repeat(auto-fill,minmax(3.2em,1fr));gap:6px;margin-top:8px}
@@ -128,4 +156,11 @@ button.bar-row{cursor:pointer;min-height:40px}
   .qmain{flex:1;max-width:640px}
   .qside{width:280px;flex:none}
   .action{padding:12px 32px}
+  /* 擬似言語の説明は、PC では右側に開き、問題と同時に見られる（本文は左にずれる） */
+  dialog.guide{width:min(600px,44vw);border-left:1px solid var(--line)}
+  .app.guide-open .body{margin-right:min(600px,44vw)}
+  /* 説明を開いている間は、本文が狭くならないよう、解説を本文の下に回す */
+  .app.guide-open .quizgrid{flex-direction:column}
+  .app.guide-open .qmain{max-width:none;width:100%}
+  .app.guide-open .qside{width:100%}
 }

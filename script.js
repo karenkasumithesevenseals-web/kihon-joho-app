@@ -8,15 +8,23 @@
   'use strict';
 
   var L = FeLogic;
-  /** 全年度の問題（令和5〜8年度の科目A 公開問題）を1つの一覧に合わせたもの。 */
+  /**
+   * 科目A の問題（令和5〜8年度の公開問題）を1つの一覧に合わせたもの。
+   * 模擬試験・合格の目安・分野ごとの成績・「ぜんぶ混ぜて」は、この科目A の一覧だけを使う。
+   */
   var QUESTIONS = [].concat(FE_QUESTIONS_R05, FE_QUESTIONS_R06, FE_QUESTIONS_R07, FE_QUESTIONS_R08);
+  /** 科目B の問題（令和8年度の公開問題）。科目A の一覧とは混ぜない。 */
+  var QUESTIONS_B = FE_QUESTIONS_R08B;
+  /** 科目A と科目B を合わせた一覧。履歴から問題を引くとき（byId）と、今日の復習だけが使う。 */
+  var QUESTIONS_ALL = QUESTIONS.concat(QUESTIONS_B);
   var KEYS = { answers: 'feAnswers', settings: 'feSettings', device: 'feDeviceId', exam: 'feExamState' };
-  var MARKS = ['ア', 'イ', 'ウ', 'エ'];
+  /** 選択肢の記号。科目A は4つ（ア〜エ）、科目B は最大10個（ア〜コ）。 */
+  var MARKS = ['ア', 'イ', 'ウ', 'エ', 'オ', 'カ', 'キ', 'ク', 'ケ', 'コ'];
   var DAILY_GOAL = 20;
   var SESSION_SIZE = 20;
   var VIEWS = ['home', 'quiz', 'stats', 'settings', 'exam', 'exam-result'];
   var byId = {};
-  QUESTIONS.forEach(function (q) { byId[q.id] = q; });
+  QUESTIONS_ALL.forEach(function (q) { byId[q.id] = q; });
 
   // ① 道具 ------------------------------------------------------------
 
@@ -50,19 +58,123 @@
   /**
    * 問題の図・表の画像を、入れ物に並べる。画像がない問題は、入れ物を空にして隠す。
    * 画像が読み込めないときは、説明文（alt）が表示される。
+   * 科目B の画像（プログラムなど）は、読みやすい大きさ（画像の幅の半分）で出し、はみ出す分は枠の中で横に動かせる。
+   * 押すと全画面で大きく見られる（openZoom）。
    * @param {HTMLElement} box 画像を入れる入れ物
    * @param {object} q 問題（images: [{src, alt}] を持つことがある）
    */
   function renderImages(box, q) {
     clear(box);
     var list = Array.isArray(q.images) ? q.images : [];
+    var zoomable = q.category === 'subjectB';
+    box.classList.toggle('scrollx', zoomable);
     list.forEach(function (im) {
-      var img = el('img', null, 'qimg');
-      img.src = im.src;
-      img.alt = im.alt || '';
-      box.appendChild(img);
+      box.appendChild(zoomable ? makeZoomableImage(im) : makeImage(im, 'qimg'));
     });
+    if (zoomable && list.length > 0) box.appendChild(el('p', '画像は左右に動かせます。押すと、大きく見られます。', 'fine'));
     box.hidden = list.length === 0;
+  }
+
+  /**
+   * 画像の要素を作る。
+   * @param {{src:string, alt:string}} im 画像の情報
+   * @param {string} className クラス名
+   * @returns {HTMLImageElement} 画像の要素
+   */
+  function makeImage(im, className) {
+    var img = el('img', null, className);
+    img.src = im.src;
+    img.alt = im.alt || '';
+    return img;
+  }
+
+  /**
+   * 押すと大きく見られる画像（ボタンの中に画像を入れたもの）を作る。画像の幅の半分で出す。
+   * @param {{src:string, alt:string}} im 画像の情報
+   * @returns {HTMLButtonElement} ボタン
+   */
+  function makeZoomableImage(im) {
+    var b = el('button', null, 'imgbtn');
+    b.type = 'button';
+    b.setAttribute('aria-label', (im.alt || '画像') + '（押すと大きく見られます）');
+    var img = el('img', null, 'qimg zoomable');
+    function setSize() { if (img.naturalWidth) img.style.width = Math.round(img.naturalWidth / 2) + 'px'; }
+    img.addEventListener('load', setSize);
+    img.src = im.src;
+    img.alt = im.alt || '';
+    if (img.complete) setSize();
+    b.appendChild(img);
+    b.addEventListener('click', function () { openZoom(im); });
+    return b;
+  }
+
+  /**
+   * 画像を全画面で大きく見る窓を開く（画像そのものの大きさで出す。はみ出す分は動かして見る）。
+   * @param {{src:string, alt:string}} im 画像の情報
+   */
+  function openZoom(im) {
+    var dlg = $('zoom-dialog');
+    var img = $('zoom-img');
+    img.src = im.src;
+    img.alt = im.alt || '';
+    if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open', '');
+    $('zoom-close').focus({ preventScroll: true });
+  }
+
+  /** 画像を大きく見る窓を閉じる。 */
+  function closeZoom() {
+    var dlg = $('zoom-dialog');
+    if (typeof dlg.close === 'function') dlg.close(); else dlg.removeAttribute('open');
+  }
+
+  /** 擬似言語の約束事のまとめ（IPA 公式ではなく、独自のまとめ）。「擬似言語の説明」の窓に文字で出す。 */
+  var PSEUDO_GUIDE = [
+    '配列の要素番号は 1 から始まります（C言語の 0 から、とは違います）。',
+    '「変数 ← 式」は代入です。右の値を、左の変数に入れます（比べるときは「＝」を使います）。',
+    'for (i を a から b まで 1 ずつ増やす) は、i を a から b まで順に変えながら、中の処理をくり返します。「減らす」のときは大きい方から小さい方へ進みます。a が b より大きい（増やす場合）と、1回も実行しません。',
+    '「未定義」は、値が入っていない状態です。',
+    '「{}」は、要素が 0 個の配列です。「配列の末尾に ○ を追加する」は、いちばん後ろに足すことです。',
+    'return は、値を返して関数を終わります。'
+  ];
+
+  /** 「擬似言語の説明」の窓の中身（画像2枚と、約束事のまとめ）を作る。起動時に1回だけ呼ぶ。 */
+  function buildGuide() {
+    var body = $('guide-body');
+    clear(body);
+    var imgs = [
+      { src: 'assets/images/r08b/guide-notation.png', alt: '擬似言語の記述形式の表（宣言・代入・if・while・do・for の書き方）' },
+      { src: 'assets/images/r08b/guide-operators.png', alt: '演算子の優先順位の表、論理型の定数、配列、未定義についての説明' }
+    ];
+    imgs.forEach(function (im) {
+      var b = el('button', null, 'imgbtn full');
+      b.type = 'button';
+      b.setAttribute('aria-label', im.alt + '（押すと大きく見られます）');
+      b.appendChild(makeImage(im, 'qimg'));
+      b.addEventListener('click', function () { openZoom(im); });
+      body.appendChild(b);
+    });
+    body.appendChild(el('p', '画像は IPA が公開している「擬似言語の記述形式」です。押すと大きく見られます。', 'fine'));
+    var box = el('div', null, 'card');
+    box.appendChild(el('b', '約束事のまとめ（このアプリの独自のまとめで、IPA 公式ではありません）'));
+    var ul = el('ul', null, 'guide-list');
+    PSEUDO_GUIDE.forEach(function (t) { ul.appendChild(el('li', t)); });
+    box.appendChild(ul);
+    body.appendChild(box);
+  }
+
+  /** 「擬似言語の説明」の窓を開く（問題を見ながら読める。スマホは全画面、PC は右側）。 */
+  function openGuide() {
+    var dlg = $('guide-panel');
+    if (typeof dlg.show === 'function') dlg.show(); else dlg.setAttribute('open', '');
+    $('app').classList.add('guide-open');
+    $('guide-close').focus({ preventScroll: true });
+  }
+
+  /** 「擬似言語の説明」の窓を閉じる。 */
+  function closeGuide() {
+    var dlg = $('guide-panel');
+    if (typeof dlg.close === 'function') dlg.close(); else dlg.removeAttribute('open');
+    $('app').classList.remove('guide-open');
   }
 
   // ② 保存（端末の localStorage） ---------------------------------------
@@ -204,6 +316,7 @@
    * @param {string} name 'home' / 'quiz' / 'stats' / 'settings' / 'exam' / 'exam-result'
    */
   function showView(name) {
+    if (name !== 'quiz') closeGuide();
     if (name !== 'exam') stopExamTimer();
     if (name === 'exam' && currentView !== 'exam') examBuilt = -1;
     currentView = name;
@@ -275,11 +388,29 @@
       var unseen = pool.filter(function (q) { return !results.has(q.id); }).length;
       tiles.appendChild(makeTile(L.CATEGORY_LABELS[cat] + '系', '未回答 ' + unseen + '問 ／ 全 ' + pool.length + '問', { type: 'category', value: cat }));
     });
-    tiles.appendChild(makeTile('ぜんぶ混ぜて', '全 ' + QUESTIONS.length + '問から出します', { type: 'all' }));
+    tiles.appendChild(makeTile('ぜんぶ混ぜて', '全 ' + QUESTIONS.length + '問から出します（科目A だけ）', { type: 'all' }));
+    var tilesB = $('home-tiles-b');
+    clear(tilesB);
+    var unseenB = QUESTIONS_B.filter(function (q) { return !results.has(q.id); }).length;
+    tilesB.appendChild(makeTile('科目B 令和8年度の公開問題',
+      '長めのプログラムを読んで、空欄に入る答えを選びます。公開されているのは 6問です。未回答 ' + unseenB + '問 ／ 全 ' + QUESTIONS_B.length + '問',
+      { type: 'category', value: 'subjectB' }));
     renderExamCard();
   }
 
   // ⑤ 問題 ----------------------------------------------------------------
+
+  /**
+   * 出題に使う問題の一覧を、条件の種類で切り替える。
+   *   今日の復習 → 科目A+B（どちらの間違いも復習に出す）／ 科目B のタイル → 科目B だけ／ それ以外 → 科目A だけ
+   * @param {object} filter {type:'review'|'all'|'category'|'sub', value?}
+   * @returns {object[]} 使う問題の一覧
+   */
+  function questionsForFilter(filter) {
+    if (filter.type === 'review') return QUESTIONS_ALL;
+    if (filter.type === 'category' && filter.value === 'subjectB') return QUESTIONS_B;
+    return QUESTIONS;
+  }
 
   /**
    * 問題を始める。出す問題を決めて、問題の画面を出す。
@@ -289,7 +420,7 @@
     var results = L.collectQuestionResults(answers);
     session = {
       filter: filter,
-      ids: L.buildSession(QUESTIONS, results, filter, SESSION_SIZE, Date.now()),
+      ids: L.buildSession(questionsForFilter(filter), results, filter, SESSION_SIZE, Date.now()),
       index: 0, correct: 0, picked: -1, answered: false, wasSeen: false, ok: false, nextText: '', builtIndex: -1
     };
     showView('quiz');
@@ -303,10 +434,10 @@
     var box = $('q-choices');
     clear(box);
     q.choices.forEach(function (text, i) {
-      var b = el('button', null, 'choice');
+      var b = el('button', null, 'choice' + (q.choices.length >= 8 ? ' many' : ''));
       b.type = 'button';
       b.appendChild(el('span', MARKS[i], 'k'));
-      b.appendChild(el('span', text));
+      b.appendChild(el('span', text, 'ct'));
       b.appendChild(el('span', '', 'm'));
       b.addEventListener('click', function () { pickChoice(i); });
       box.appendChild(b);
@@ -364,12 +495,20 @@
     }
     body.hidden = false;
     action.hidden = false;
-    $('q-progress').textContent = (L.CATEGORY_LABELS[q.category] || '') + '系 ・ ' + q.sub + ' ・ ' + (session.index + 1) + ' / ' + session.ids.length;
+    var isB = q.category === 'subjectB';
+    var label = isB ? '科目B' : (L.CATEGORY_LABELS[q.category] || '') + '系';
+    $('q-progress').textContent = label + ' ・ ' + q.sub + ' ・ ' + (session.index + 1) + ' / ' + session.ids.length;
+    $('q-guide').hidden = !isB;
+    $('q-bnote').hidden = !isB;
+    if (!isB) closeGuide();
+    $('q-expl-text').className = isB ? 'pre' : '';
     $('q-tag').textContent = session.wasSeen ? '復習' : '新しい問題';
     $('q-text').textContent = q.text;
     $('q-source').textContent = q.isSample
       ? '画面確認用の架空の問題です。'
-      : '出典: IPA（情報処理推進機構）基本情報技術者試験 科目A 公開問題（令和5〜8年度）。解説は独自に書いたもので、IPA 公式ではありません。';
+      : isB
+        ? '出典: IPA（情報処理推進機構）基本情報技術者試験 科目B 公開問題（令和8年度）。解説は独自に書いたもので、IPA 公式ではありません。'
+        : '出典: IPA（情報処理推進機構）基本情報技術者試験 科目A 公開問題（令和5〜8年度）。解説は独自に書いたもので、IPA 公式ではありません。';
     paintChoices(q);
 
     var expl = $('q-expl');
@@ -920,6 +1059,9 @@
   $('x-mark').addEventListener('click', toggleExamMark);
   $('x-finish').addEventListener('click', onExamFinishClick);
   $('q-submit').addEventListener('click', onSubmit);
+  $('q-guide').addEventListener('click', openGuide);
+  $('guide-close').addEventListener('click', closeGuide);
+  $('zoom-close').addEventListener('click', closeZoom);
   $('large-btn').addEventListener('click', toggleLarge);
   $('q-large').addEventListener('click', toggleLarge);
   $('target-input').addEventListener('change', function (e) { settings.targetDate = e.target.value; saveSettings(); });
@@ -948,6 +1090,7 @@
   window.addEventListener('offline', renderSyncBar);
   document.addEventListener('fesync-ready', startSync);
 
+  buildGuide();
   renderSyncBar();
   applySettings();
   loadExam();
