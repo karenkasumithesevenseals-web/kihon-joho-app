@@ -87,7 +87,7 @@
       <!-- 模擬試験（試験中） -->
       <section class="screen split" id="view-exam" hidden>
         <div class="scroll">
-          <div class="qhead"><span id="x-progress"></span><span class="tag warn timer" id="x-timer" role="timer"></span></div>
+          <div class="qhead sticky"><span id="x-progress"></span><span class="tag warn timer" id="x-timer" role="timer"></span></div>
           <div class="quizgrid">
             <div class="qmain">
               <p class="qtext" id="x-text"></p>
@@ -103,21 +103,25 @@
               </div>
               <div class="row">
                 <button type="button" class="btn" id="x-mark" aria-pressed="false">見直しの印をつける</button>
-                <button type="button" class="btn" id="x-quit">この模擬試験をやめる</button>
+              </div>
+              <div class="quit-zone">
+                <button type="button" class="btn quiet" id="x-quit">破棄する（採点しない）</button>
+                <p class="fine">途中でやめるときのボタンです。答えた分は成績に入りません。</p>
               </div>
             </div>
           </div>
         </div>
         <div class="action">
           <button type="button" class="btn" id="x-prev">前の問題</button>
-          <button type="button" class="btn" id="x-next">次の問題</button>
-          <button type="button" class="btn main" id="x-finish">終了する</button>
+          <button type="button" class="btn main" id="x-next">次の問題</button>
+          <button type="button" class="btn finish" id="x-finish">採点して終わる</button>
         </div>
       </section>
 
       <!-- 模擬試験（結果） -->
       <section class="screen" id="view-exam-result" hidden>
         <h1 class="title">模擬試験の結果</h1>
+        <p class="warnbox" id="xr-warn" role="alert" hidden></p>
         <div class="card" id="xr-score"></div>
         <div class="card"><b>分野ごとの正答率</b><div class="bars" id="xr-cat"></div><p class="fine">黒い線は「練習の目安 60%」です。</p></div>
         <h2 class="sub-title">間違えた問題・未回答の問題</h2>
@@ -155,7 +159,7 @@
   <nav class="nav" id="nav" aria-label="メニュー">
     <div class="brand">基本情報 学習</div>
     <button type="button" data-go="home" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10"/></svg><span>ホーム</span></button>
-    <button type="button" data-go="quiz"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l12 8-12 8z"/></svg><span>続きから</span></button>
+    <button type="button" data-go="quiz"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l12 8-12 8z"/></svg><span>一問一答</span></button>
     <button type="button" data-go="stats"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"/></svg><span>成績</span></button>
     <button type="button" data-go="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg><span>設定</span></button>
   </nav>

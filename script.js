@@ -221,32 +221,37 @@
   /**
    * 回答の記録を1件足して保存する。
    * @param {object} a 回答の記録
+   * @returns {boolean} この端末に保存できたら true
    */
-  function saveAnswer(a) { saveAnswers([a]); }
+  function saveAnswer(a) { return saveAnswers([a]); }
 
   /**
    * 回答の記録をまとめて足して保存する。
    * 保存の直前に、ほかのタブが足した記録を読み直して合流させる（消さないため）。
    * 保存できなくても、このページを開いている間は覚えている。
    * @param {object[]} list 回答の記録の一覧
+   * @returns {boolean} この端末に保存できたら true（保存を止めているとき・容量がいっぱいのときは false。クラウドへは送る）
    */
   function saveAnswers(list) {
     answers = L.mergeAnswers(answers, list);
-    persistAnswers();
+    var saved = persistAnswers();
     pushToCloud(list);
     renderSyncBar();
+    return saved;
   }
 
   /**
    * いまの記録を端末に保存する。保存の直前に、ほかのタブが足した記録を読み直して合流させる（消さないため）。
    * 保存してあるデータが読めないときは、元のデータを守るため書かない。
+   * @returns {boolean} 端末に書けたら true。書かなかった（保存を止めている）・書けなかった（容量など）ときは false
    */
   function persistAnswers() {
-    if (saveBlocked) return;
+    if (saveBlocked) return false;
     var latest = L.inspectStoredAnswers(readStorage(KEYS.answers));
-    if (latest.broken || latest.dropped > 0) { saveBlocked = true; return; }
+    if (latest.broken || latest.dropped > 0) { saveBlocked = true; return false; }
     answers = L.mergeAnswers(answers, latest.answers);
     storageOk = writeStorage(KEYS.answers, JSON.stringify(answers));
+    return storageOk;
   }
 
   /**
@@ -620,8 +625,9 @@
     } else {
       judge.appendChild(el('span', '練習の目安', 'fine'));
       judge.appendChild(el('div', est.gapPercent === 0 ? '合格の目安に届いています' : '合格の目安まで あと ' + est.gapPercent + '%', 'judge-main'));
-      judge.appendChild(el('p', '初めて見た問題の正答率 ' + Math.round(est.rate * 100) + '%（直近 ' + est.sampleSize + '問）。本番の合否は科目ごとの得点で決まります。ここは練習用の目安です。', 'fine'));
+      judge.appendChild(el('p', '初めて見た問題の正答率 ' + Math.round(est.rate * 100) + '%（直近 ' + est.sampleSize + '問）。', 'fine'));
     }
+    judge.appendChild(el('p', '本番の合格には、科目A と 科目B の両方で 600点以上（1000点満点）が必要です。この目安は、科目A だけの練習用で、60% は点数ではなく仮の線です。科目B の成績は入っていません。', 'fine'));
 
     var acc = L.accuracyByGroup(results, QUESTIONS);
     var cat = $('stats-cat');
@@ -815,8 +821,9 @@
       var left = L.examRemainingMs(exam, Date.now());
       if (left <= 0) { finishExam(); return; }
       text.textContent = '途中の模擬試験があります（' + Object.keys(exam.picks).length + ' / ' + exam.qids.length + '問 回答ずみ・残り ' + L.formatClock(left) + '）。';
-      note.textContent = 'やめている間も時間は進みます。';
-      discard.textContent = 'この模擬試験をやめる';
+      note.textContent = '画面を閉じている間も、時間は進みます。';
+      discard.textContent = '破棄する（採点しない）';
+      resume.textContent = '模擬試験の続きから（残り ' + L.formatClock(left) + '）';
       resume.hidden = false;
       discard.hidden = false;
       return;
@@ -854,7 +861,7 @@
       removeStorage(KEYS.exam);
       examBlocked = false;
     } else if (exam) {
-      if (!window.confirm('この模擬試験をやめます。答えた分は成績に入りません。よろしいですか？')) return;
+      if (!window.confirm('この模擬試験を破棄します。採点はせず、答えた分も成績に入りません。元には戻せません。よろしいですか？')) return;
       removeStorage(KEYS.exam);
       exam = null;
     }
@@ -958,11 +965,16 @@
     renderExam();
   }
 
-  /** 残り時間の表示を更新する。0になったら終了する。試験の画面でなければ仕掛けを止める。 */
+  /** 残り時間が、この時間（ミリ秒）以下になったら、色と文字で知らせる。 */
+  var EXAM_URGENT_MS = 5 * 60 * 1000;
+
+  /** 残り時間の表示を更新する。0になったら終了する。試験の画面でなければ仕掛けを止める。5分以下は色を変えて、文字でも知らせる。 */
   function tickExamTimer() {
     if (!exam || currentView !== 'exam') { stopExamTimer(); return; }
     var left = L.examRemainingMs(exam, Date.now());
-    $('x-timer').textContent = '残り ' + L.formatClock(left);
+    var urgent = left <= EXAM_URGENT_MS;
+    $('x-timer').textContent = '残り ' + L.formatClock(left) + (urgent ? '（もうすぐ終わります）' : '');
+    $('x-timer').classList.toggle('urgent', urgent);
     if (left <= 0) finishExam();
   }
 
@@ -977,14 +989,15 @@
     if (!exam) return;
     var unanswered = exam.qids.length - Object.keys(exam.picks).length;
     var message = unanswered > 0
-      ? '未回答が ' + unanswered + '問 あります。このまま終了しますか？'
-      : '模擬試験を終了して、採点します。よろしいですか？';
+      ? '未回答が ' + unanswered + '問 あります。このまま採点して終わりますか？'
+      : '模擬試験を終わって、採点します。よろしいですか？';
     if (window.confirm(message)) finishExam();
   }
 
   /**
    * 模擬試験を終える。採点して、答えた分を成績（answers）に足し、途中の保存を消して、結果画面を出す。
    * 先に成績へ足してから保存を消す（途中で失敗しても答えを失わないため）。二重には動かない。
+   * 成績を端末に保存できなかったときは、途中の保存を消さずに残し、結果画面で知らせる（答えを失わないため）。
    */
   function finishExam() {
     if (!exam || examFinishing) return;
@@ -992,9 +1005,9 @@
     try {
       var now = Date.now();
       var grade = L.gradeExam(exam, QUESTIONS);
-      saveAnswers(L.examAnswersToRecord(exam, QUESTIONS, now, deviceId));
-      examResult = { grade: grade, qids: exam.qids.slice(), timeUp: L.examRemainingMs(exam, now) <= 0 };
-      removeStorage(KEYS.exam);
+      var saved = saveAnswers(L.examAnswersToRecord(exam, QUESTIONS, now, deviceId));
+      examResult = { grade: grade, qids: exam.qids.slice(), timeUp: L.examRemainingMs(exam, now) <= 0, saved: saved };
+      if (saved) removeStorage(KEYS.exam);
       exam = null;
     } finally {
       examFinishing = false;
@@ -1008,6 +1021,13 @@
     var g = examResult.grade;
     var box = $('xr-score');
     clear(box);
+    var warn = $('xr-warn');
+    warn.hidden = examResult.saved !== false;
+    if (!warn.hidden) {
+      warn.textContent = 'この端末に成績を保存できませんでした。' +
+        (sync.loggedIn ? 'ログイン中なので、クラウドには送っています。' : 'ログインしていないので、このページを閉じると今回の成績は消えます。') +
+        '模擬試験の途中の保存は消さずに残してあります。';
+    }
     box.appendChild(el('span', examResult.timeUp ? '時間切れで終了しました' : '終了しました', 'fine'));
     box.appendChild(el('div', g.correct + ' / ' + g.total + '問 正解（' + Math.round(g.rate * 100) + '%）', 'judge-main'));
     var target = Math.round(L.PASS_TARGET_RATE * 100);

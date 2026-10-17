@@ -135,6 +135,15 @@ dialog.guide[open],dialog.zoom[open]{display:flex;flex-direction:column}
 .zoom-body{align-items:flex-start}
 .zoom-body img{display:block;max-width:none;width:auto;height:auto;background:#fff}
 
+/* 模擬試験: 残り時間を上に固定する・5分以下は赤・「採点して終わる」は目立たせず離す・「破棄する」は小さな文字のボタン */
+#view-exam .scroll{padding-top:0}
+.qhead.sticky{position:sticky;top:0;z-index:3;background:var(--bg);padding:14px 0 10px;margin-bottom:4px;border-bottom:1px solid var(--line)}
+.timer.urgent{background:var(--ng-soft);color:var(--ng)}
+.btn.finish{background:var(--warn-soft);color:var(--warn);border-color:var(--warn);font-weight:700;margin-left:8px}
+.btn.quiet{background:none;border-color:transparent;color:var(--ng);text-decoration:underline}
+.quit-zone{margin-top:22px;padding-top:10px;border-top:1px solid var(--line)}
+.warnbox{margin:0;background:var(--warn-soft);color:var(--warn);border-left:4px solid var(--warn);border-radius:0 10px 10px 0;padding:12px 14px;font-weight:700}
+
 /* 模擬試験 */
 .timer{font-family:var(--mono);font-weight:700}
 .cells{display:grid;grid-template-columns:repeat(auto-fill,minmax(3.2em,1fr));gap:6px;margin-top:8px}

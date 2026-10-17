@@ -194,6 +194,8 @@ const FeLogic = (function () {
 
   /** 合格の目安に使う正答率（練習用の目安）。 */
   var PASS_TARGET_RATE = 0.6;
+  /** 回答の記録の mode（どの画面で答えたか）。一問一答・復習・模擬試験。これ以外はクラウドから受け取らない。 */
+  var KNOWN_MODES = ['quiz', 'review', 'exam'];
   /** 合格の目安を出すのに必要な「初めて見た問題」の数。 */
   var MIN_FIRST_ANSWERS = 50;
   /** 合格の目安の計算に使う、直近の「初めて見た問題」の数。 */
@@ -254,7 +256,9 @@ const FeLogic = (function () {
     return {
       status: 'ok',
       rate: rate,
-      gapPercent: Math.max(0, Math.round((PASS_TARGET_RATE - rate) * 100)),
+      // 目安の 60% まで、あと何%か。切り上げる（59.6% を「届いている」にしないため）。
+      // 先に 1000000 倍して四捨五入するのは、0.6 − 0.5 のような小数の誤差で、ぴったりの値が 1% 多く出ないようにするため
+      gapPercent: Math.max(0, Math.ceil(Math.round((PASS_TARGET_RATE - rate) * 1000000) / 10000)),
       sampleSize: recent.length
     };
   }
@@ -327,7 +331,12 @@ const FeLogic = (function () {
    */
   function docToAnswer(id, data) {
     if (!data || typeof data !== 'object') return null;
-    var a = { id: id, qid: data.qid, choice: data.choice, correct: data.correct, at: data.at, mode: data.mode, deviceId: data.deviceId };
+    // クラウドから来た値は、番号と mode を厳しく見る（端末に保存した記録の検査 isValidAnswer は、今ある成績を守るため厳しくしない）
+    var choice = data.choice === undefined ? -1 : data.choice;
+    if (!Number.isInteger(choice) || choice < -1 || choice > 9) return null;
+    var mode = data.mode === undefined ? 'quiz' : data.mode;
+    if (KNOWN_MODES.indexOf(mode) < 0) return null;
+    var a = { id: id, qid: data.qid, choice: choice, correct: data.correct, at: data.at, mode: mode, deviceId: data.deviceId };
     return isValidAnswer(a) ? a : null;
   }
 
