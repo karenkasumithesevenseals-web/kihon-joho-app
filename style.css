@@ -151,6 +151,66 @@ dialog.guide[open],dialog.zoom[open]{display:flex;flex-direction:column}
 .cell.done{background:var(--accent-soft);border-color:var(--accent);font-weight:700}
 .cell.now{outline:3px solid var(--ink);outline-offset:1px}
 
+/* トレース練習: コードの行（▶・太い左線・背景で「次に実行する行」を示す。色だけにしない）・変数の表・予想の入力欄 */
+.tr-top{justify-content:space-between;align-items:center}
+.trace-grid{display:flex;flex-direction:column;gap:14px}
+.trace-main,.trace-side{display:flex;flex-direction:column;gap:12px;min-width:0}
+.code{list-style:none;margin:8px 0 0;padding:0;font-family:var(--mono);font-size:.95em}
+.cl{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 6px;padding:4px 8px 4px 6px;border-left:6px solid transparent;border-radius:0 6px 6px 0;min-width:0}
+.cl .mk{flex:none;width:1.2em;font-weight:700;color:var(--accent)}
+.cl .ln{flex:none;width:1.8em;text-align:right;color:var(--sub)}
+.cl .tx{flex:1 1 12em;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.cl .tag{flex:none;margin-left:auto;font-family:var(--font)}
+.cl.next{border-left-color:var(--accent);background:var(--accent-soft);font-weight:700}
+.cl.ran:not(.next){background:var(--bg)}
+.cl.hint{outline:3px dashed var(--warn);outline-offset:-3px}
+.vars{width:100%;border-collapse:collapse;margin-top:8px;font-family:var(--mono)}
+.vars th,.vars td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left}
+.vars th{width:30%;font-weight:700}
+.vars td.val{overflow-wrap:anywhere}
+.vars tr.changed{background:var(--warn-soft)}
+.vars .fine{font-family:var(--font)}
+.expl.ok{border-left-color:var(--ok);background:var(--ok-soft)}
+.expl.ng{border-left-color:var(--ng);background:var(--ng-soft)}
+.expl.ok b,.expl.ng b{font-size:1.05em}
+#tr-feedback,.bridge .expl{scroll-margin-bottom:120px}
+.vars .fhead th{width:auto;background:var(--bg);font-family:var(--font);font-size:.9em}
+#view-trace .btn[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:700}
+.bridge{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+.bridge .code{margin:0}
+.vars .tag{white-space:nowrap}
+.vars td:last-child{width:1%;white-space:nowrap}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.q-inputs{display:flex;flex-direction:column;gap:10px;margin:10px 0}
+.qi{display:flex;flex-direction:column;gap:4px}
+.qi .field{width:100%;box-sizing:border-box}
+.tr-controls{position:sticky;bottom:0;z-index:2;background:var(--bg);padding:8px 0;gap:6px;border-top:1px solid var(--line)}
+.tr-controls .btn{flex:1 1 auto}
+@media (min-width:900px){
+  .trace-grid{flex-direction:row;align-items:flex-start}
+  .trace-main{flex:1;max-width:680px}
+  .trace-side{width:320px;flex:none}
+}
+
+@media (max-width:899px){
+  .trace-main,.trace-side{display:contents}
+  .trace-main>.card:first-child{order:1}
+  .trace-side>.card:first-child{order:2}
+  #tr-feedback{order:3}
+  #tr-question{order:4}
+  #tr-note{order:5}
+  #tr-done{order:6}
+  /* 操作ボタンは2段に: 上に「戻る」「次へ」、下に補助の3つ（変数の表を隠さないため） */
+  .tr-controls .btn{flex:1 1 30%}
+  .tr-controls #tr-back{order:1;flex:1 1 30%}
+  .tr-controls #tr-next{order:2;flex:2 1 60%}
+  .tr-controls #tr-reset{order:3}
+  .tr-controls #tr-branch{order:4}
+  .tr-controls #tr-end{order:5}
+  .tr-controls .btn{padding-left:4px;padding-right:4px;font-size:.92em}
+}
+@media (hover:none){.tr-keys{display:none}}
+
 /* PC（幅 900px 以上）：メニューを左に、問題は左に本文・右に解説 */
 @media (min-width:900px){
   .app{flex-direction:row}

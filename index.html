@@ -44,7 +44,8 @@
         <h2 class="sub-title">科目B（プログラムを読んで答える）</h2>
         <div class="grid" id="home-tiles-b"></div>
         <p class="fine">科目A は短い知識問題（四択）、科目B は擬似言語のプログラムを読む問題です。科目B の成績は、科目A の成績・合格の目安・模擬試験には入りません。今日の復習には出ます。</p>
-        <p class="fine">擬似言語のトレース練習など、ほかの科目B の練習は、今後追加する予定です。</p>
+        <h2 class="sub-title">トレース練習（科目B の準備）</h2>
+        <div class="grid" id="home-tiles-trace"></div>
         <p class="fine">非公式の学習アプリです。問題の出典は IPA（情報処理推進機構）の公開問題です。</p>
       </section>
 
@@ -138,6 +139,62 @@
         <div class="card"><b>小分野（押すと、その分野の問題へ）</b><div class="bars" id="stats-sub"></div><p class="fine">オレンジの棒は目安より低い分野（要強化）です。</p></div>
       </section>
 
+      <!-- トレース練習 -->
+      <section class="screen" id="view-trace" hidden>
+        <h1 class="title">トレース練習</h1>
+        <p class="warnbox" id="tr-warn" role="alert" hidden></p>
+        <div id="tr-list">
+          <p class="fine">擬似言語のプログラムを 1行ずつ動かして、変数の値の変化を追う練習です。「見る」で動きを確かめ、「予想する」で自分の力を試せます。成績はこの端末だけに保存します（科目A・科目B の成績には入りません）。</p>
+          <div class="grid" id="tr-problems"></div>
+          <p class="fine">自作の練習問題です。IPA の公開問題ではありません。</p>
+        </div>
+        <div id="tr-run" hidden>
+          <div class="row tr-top">
+            <b id="tr-title"></b>
+            <button type="button" class="btn" id="tr-to-list">一覧へ</button>
+          </div>
+          <p class="fine" id="tr-learn"></p>
+          <div class="row" role="group" aria-label="練習のしかた">
+            <button type="button" class="btn" id="tr-mode-watch" aria-pressed="true">見る</button>
+            <button type="button" class="btn" id="tr-mode-predict" aria-pressed="false">予想する</button>
+          </div>
+          <div class="trace-grid">
+            <div class="trace-main">
+              <div class="card">
+                <b id="tr-code-head">次に実行する行</b>
+                <ol class="code" id="tr-code"></ol>
+              </div>
+              <div class="card" id="tr-note"></div>
+            </div>
+            <div class="trace-side">
+              <div class="card">
+                <b>変数の表（ここまで実行した結果）</b>
+                <table class="vars" id="tr-vars"><caption class="sr">変数の名前と、いまの値</caption><tbody></tbody></table>
+              </div>
+              <div class="expl" id="tr-feedback" role="status" aria-live="polite" hidden></div>
+              <div class="card" id="tr-question" hidden>
+                <b id="tr-q-title"></b>
+                <div id="tr-q-inputs" class="q-inputs"></div>
+                <div class="row">
+                  <button type="button" class="btn main" id="tr-q-submit">答える</button>
+                  <button type="button" class="btn" id="tr-q-hint">ヒント</button>
+                </div>
+                <p class="fine" id="tr-q-hint-text" hidden></p>
+              </div>
+              <div class="card" id="tr-done" hidden></div>
+            </div>
+          </div>
+          <div class="row tr-controls">
+            <button type="button" class="btn" id="tr-reset">最初から</button>
+            <button type="button" class="btn" id="tr-back">← 1つ戻る</button>
+            <button type="button" class="btn main" id="tr-next">次の1行へ →</button>
+            <button type="button" class="btn" id="tr-branch">次の分かれ道まで</button>
+            <button type="button" class="btn" id="tr-end">最後まで</button>
+          </div>
+          <p class="fine tr-keys">キー: → 次へ　← 戻る（入力欄の中では使えません）。「次の分かれ道まで」「最後まで」は、「見る」のときだけ使えます。</p>
+        </div>
+      </section>
+
       <!-- 設定 -->
       <section class="screen" id="view-settings" hidden>
         <h1 class="title">設定</h1>
@@ -160,6 +217,7 @@
     <div class="brand">基本情報 学習</div>
     <button type="button" data-go="home" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10"/></svg><span>ホーム</span></button>
     <button type="button" data-go="quiz"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l12 8-12 8z"/></svg><span>一問一答</span></button>
+    <button type="button" data-go="trace"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M4 12h16M4 18h10M17 4l3 2-3 2"/></svg><span>トレース</span></button>
     <button type="button" data-go="stats"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"/></svg><span>成績</span></button>
     <button type="button" data-go="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg><span>設定</span></button>
   </nav>
@@ -182,7 +240,9 @@
 <script src="data/questions-r07.js"></script>
 <script src="data/questions-r08.js"></script>
 <script src="data/questions-r08b.js"></script>
+<script src="data/trace-problems.js"></script>
 <script src="logic.js"></script>
+<script src="trace-logic.js"></script>
 <script src="script.js"></script>
 <script type="module" src="sync.js"></script>
 <script>

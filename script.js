@@ -1,6 +1,6 @@
 /**
  * script.js … 画面の動きと、端末への保存。
- * 読み方: ①道具 ②保存 ③画面の切り替え ④ホーム ⑤問題 ⑥成績 ⑦設定 ⑨クラウド同期 ⑩模擬試験 ⑧はじまり の順に並んでいる。
+ * 読み方: ①道具 ②保存 ③画面の切り替え ④ホーム ⑤問題 ⑥成績 ⑦設定 ⑨クラウド同期 ⑩模擬試験 ⑪トレース練習 ⑧はじまり の順に並んでいる。
  * 計算は logic.js（FeLogic）、問題は data/（FE_QUESTIONS_R05 など、年度ごと）にある。
  * 画面の文字は textContent で入れる（innerHTML は使わない）。
  */
@@ -17,12 +17,12 @@
   var QUESTIONS_B = FE_QUESTIONS_R08B;
   /** 科目A と科目B を合わせた一覧。履歴から問題を引くとき（byId）と、今日の復習だけが使う。 */
   var QUESTIONS_ALL = QUESTIONS.concat(QUESTIONS_B);
-  var KEYS = { answers: 'feAnswers', settings: 'feSettings', device: 'feDeviceId', exam: 'feExamState' };
+  var KEYS = { answers: 'feAnswers', settings: 'feSettings', device: 'feDeviceId', exam: 'feExamState', trace: 'feTraceProgress' };
   /** 選択肢の記号。科目A は4つ（ア〜エ）、科目B は最大10個（ア〜コ）。 */
   var MARKS = ['ア', 'イ', 'ウ', 'エ', 'オ', 'カ', 'キ', 'ク', 'ケ', 'コ'];
   var DAILY_GOAL = 20;
   var SESSION_SIZE = 20;
-  var VIEWS = ['home', 'quiz', 'stats', 'settings', 'exam', 'exam-result'];
+  var VIEWS = ['home', 'quiz', 'stats', 'settings', 'exam', 'exam-result', 'trace'];
   var byId = {};
   QUESTIONS_ALL.forEach(function (q) { byId[q.id] = q; });
 
@@ -318,7 +318,7 @@
 
   /**
    * 指定の画面を出して、中身を描き直す。
-   * @param {string} name 'home' / 'quiz' / 'stats' / 'settings' / 'exam' / 'exam-result'
+   * @param {string} name 'home' / 'quiz' / 'stats' / 'settings' / 'exam' / 'exam-result' / 'trace'
    */
   function showView(name) {
     if (name !== 'quiz') closeGuide();
@@ -335,6 +335,7 @@
     if (name === 'settings') renderSettings();
     if (name === 'exam') renderExam();
     if (name === 'exam-result') renderExamResult();
+    if (name === 'trace') renderTrace();
     var heading = $('view-' + name).querySelector('.title');
     if (heading) { heading.tabIndex = -1; heading.focus({ preventScroll: true }); }
   }
@@ -400,6 +401,14 @@
     tilesB.appendChild(makeTile('科目B 令和8年度の公開問題',
       '長めのプログラムを読んで、空欄に入る答えを選びます。公開されているのは 6問です。未回答 ' + unseenB + '問 ／ 全 ' + QUESTIONS_B.length + '問',
       { type: 'category', value: 'subjectB' }));
+    var tilesT = $('home-tiles-trace');
+    clear(tilesT);
+    var tb = el('button', null, 'tile');
+    tb.type = 'button';
+    tb.appendChild(el('b', '擬似言語のトレース練習'));
+    tb.appendChild(el('span', 'プログラムを 1行ずつ動かして、変数の値の変化を追います。自作の ' + TRACE_PROBLEMS.length + '問。'));
+    tb.addEventListener('click', function () { showView('trace'); });
+    tilesT.appendChild(tb);
     renderExamCard();
   }
 
@@ -1061,6 +1070,514 @@
       list.appendChild(card);
     });
   }
+
+  // ⑪ トレース練習 -------------------------------------------------------
+  // 擬似言語のプログラムを1行ずつ動かして見る画面。動かす計算は trace-logic.js（FeTrace）、問題は data/trace-problems.js。
+  // 成績は端末だけの localStorage（feTraceProgress）。科目A・科目B の成績（feAnswers）には入れない。
+
+  var T = FeTrace;
+  var traceStored = T.parseProgress(readStorage(KEYS.trace));
+  /** 練習の成績。保存が読めないとき（traceBlocked）は、上書きしないため保存を止める。 */
+  var traceProgress = traceStored.progress;
+  var traceBlocked = traceStored.broken;
+
+  /**
+   * いま開いている練習の状態。problem が null なら、問題の一覧を出している。
+   *   problem: 問題 / run: T.run の結果 / idx: いま何番目のステップか / mode: 'watch'（見る）か 'predict'（予想する）
+   *   asked・correct・missed: 予想の成績 / answered: 答え終えたステップ番号の記録 / pending: いま出している問題
+   *   feedback: 当たり・はずれの文 / recorded: 最後まで進んだことを成績に入れたか
+   */
+  var trace = { problem: null, run: null, idx: 0, mode: 'watch', asked: 0, correct: 0, missed: [], answered: {}, pending: null, feedback: null, feedbackKind: null, recorded: false, bridge: { picked: null } };
+
+  /** 練習の成績を保存する（保存が読めないときは何もしない）。 */
+  function saveTraceProgress() {
+    if (traceBlocked) return;
+    if (!writeStorage(KEYS.trace, JSON.stringify(traceProgress))) storageOk = false;
+    renderSyncBar();
+  }
+
+  /** トレース画面を描く。問題を開いていれば実行画面、なければ一覧。 */
+  function renderTrace() {
+    var warn = $('tr-warn');
+    warn.hidden = !traceBlocked;
+    if (traceBlocked) warn.textContent = '保存してある練習の記録が読めません。記録を守るため、保存を止めています（今回の分は、閉じると消えます）。';
+    $('tr-list').hidden = trace.problem !== null;
+    $('tr-run').hidden = trace.problem === null;
+    if (trace.problem) renderTraceRun(); else renderTraceList();
+  }
+
+  /** 問題の一覧を描く（問題ごとに「未挑戦／できた／予想 5/7」を文字で出す）。 */
+  function renderTraceList() {
+    var box = $('tr-problems');
+    clear(box);
+    var now = Date.now();
+    TRACE_PROBLEMS.forEach(function (p, i) {
+      var st = T.problemStatus(traceProgress, p.id, now);
+      var b = el('button', null, 'tile');
+      b.type = 'button';
+      b.appendChild(el('b', (i + 1) + '. ' + p.title));
+      b.appendChild(el('span', p.learn));
+      b.appendChild(el('span', '状態: ' + st.label + (st.again ? '　・　3日以上たちました。もう一度やってみましょう' : '')));
+      b.addEventListener('click', function () { openTrace(p.id); });
+      box.appendChild(b);
+    });
+  }
+
+  /**
+   * 問題を開いて、最初の状態にする。
+   * @param {string} id 問題の id
+   */
+  function openTrace(id) {
+    var p = TRACE_PROBLEMS.filter(function (x) { return x.id === id; })[0];
+    if (!p) return;
+    trace.problem = p;
+    trace.run = T.run(p.code);
+    trace.mode = 'watch';
+    resetTraceRun();
+    renderTrace();
+    window.scrollTo(0, 0);
+  }
+
+  /** いまの問題を、最初から（ステップ0・予想の成績も0）にやり直す。 */
+  function resetTraceRun() {
+    trace.idx = 0;
+    trace.asked = 0;
+    trace.correct = 0;
+    trace.missed = [];
+    trace.answered = {};
+    trace.pending = null;
+    trace.feedback = null;
+    trace.feedbackKind = null;
+    trace.recorded = false;
+    trace.bridge = { picked: null };
+    $('tr-q-inputs').dataset.qid = '';
+  }
+
+  /** 実行画面を描く（コードの行・変数の表・説明・予想の問題・最後の表示）。 */
+  function renderTraceRun() {
+    var p = trace.problem;
+    var steps = trace.run.steps;
+    var step = steps[trace.idx];
+    var last = trace.idx === steps.length - 1;
+    var atEnd = last && trace.run.finished;
+    var hintLines = trace.pending && trace.pending.hint >= 1 ? p.hintLines : [];
+
+    $('tr-title').textContent = p.title;
+    $('tr-learn').textContent = p.learn;
+    $('tr-mode-watch').setAttribute('aria-pressed', String(trace.mode === 'watch'));
+    $('tr-mode-predict').setAttribute('aria-pressed', String(trace.mode === 'predict'));
+
+    // コードの行
+    var noteOf = {};
+    p.notes.forEach(function (n) { noteOf[n.line] = n; });
+    $('tr-code-head').textContent = step.next === null
+      ? (atEnd ? '終わりました（これ以上、実行する行はありません）' : 'ここで止まりました')
+      : '次に実行する行（まだ実行していません）';
+    var code = $('tr-code');
+    clear(code);
+    p.code.split('\n').forEach(function (text, i) {
+      var no = i + 1;
+      var li = el('li', null, 'cl');
+      if (no === step.next) { li.classList.add('next'); li.setAttribute('aria-current', 'step'); }
+      if (no === step.ran) li.classList.add('ran');
+      if (hintLines.indexOf(no) >= 0) li.classList.add('hint');
+      li.appendChild(el('span', no === step.next ? '▶' : '', 'mk'));
+      li.appendChild(el('span', String(no), 'ln'));
+      li.appendChild(el('span', text === '' ? ' ' : text, 'tx'));
+      if (no === step.ran && trace.idx > 0) li.appendChild(el('span', 'いま実行した', 'tag'));
+      code.appendChild(li);
+    });
+
+    // 次に実行する行の説明
+    var note = $('tr-note');
+    clear(note);
+    if (step.next !== null && noteOf[step.next]) {
+      note.appendChild(el('b', step.next + '行目の説明'));
+      var nt = el('p', noteOf[step.next].text);
+      nt.style.margin = '6px 0 0';
+      note.appendChild(nt);
+      if (noteOf[step.next].cDiff) note.appendChild(el('p', 'C言語とちがう所です', 'tag warn'));
+    } else {
+      note.appendChild(el('b', '説明'));
+      note.appendChild(el('p', step.next === null ? '実行する行は、もうありません。' : '', 'fine'));
+    }
+    if (trace.idx > 0 && step.note) note.appendChild(el('p', '直前の行: ' + step.note, 'fine'));
+
+    // 変数の表
+    var tbody = $('tr-vars').querySelector('tbody');
+    clear(tbody);
+    // 関数を呼んでいるときは、呼び出しごとに表を分ける（いま動いている関数を一番上に。再帰でも n が別の入れ物だと分かる）
+    var frames = step.frames;
+    var topIdx = frames.length - 1;
+    var multi = frames.length > 1;
+    var hasOwn = function (obj, key) { return Object.prototype.hasOwnProperty.call(obj, key); };
+    if (!multi && Object.keys(frames[0].vars).length === 0) {
+      var er = el('tr');
+      var ec = el('td', 'まだ変数はありません', 'fine');
+      ec.colSpan = 3;
+      er.appendChild(ec);
+      tbody.appendChild(er);
+    }
+    for (var fi = topIdx; fi >= 0; fi--) {
+      var fvars = frames[fi].vars;
+      if (multi) {
+        var hr = el('tr', null, 'fhead');
+        var hc = el('th', fi === 0 ? '本体（大域の変数もここ）' : (fi === topIdx ? '動いている関数: ' : '呼び出し元: ') + (frames[fi].label || frames[fi].name));
+        hc.colSpan = 3;
+        hr.appendChild(hc);
+        tbody.appendChild(hr);
+      }
+      var fnames = Object.keys(fvars);
+      if (multi && fnames.length === 0) {
+        var nr = el('tr');
+        var nc = el('td', '（変数はありません）', 'fine');
+        nc.colSpan = 3;
+        nr.appendChild(nc);
+        tbody.appendChild(nr);
+      }
+      fnames.forEach(function (name) {
+        // 変わった印は、いま動いている関数の変数と、関数から書き換えた大域の変数につける
+        var changed = step.assigned.indexOf(name) >= 0 && (fi === topIdx || (fi === 0 && !hasOwn(frames[topIdx].vars, name)));
+        var tr = el('tr', null, changed ? 'changed' : '');
+        tr.appendChild(el('th', name));
+        tr.appendChild(el('td', T.showValue(fvars[name]), 'val'));
+        var mark = el('td');
+        if (changed) mark.appendChild(el('span', '変わった', 'tag warn'));
+        tr.appendChild(mark);
+        tbody.appendChild(tr);
+      });
+    }
+
+    renderTraceQuestion();
+
+    // 当たり・はずれ
+    var fb = $('tr-feedback');
+    fb.hidden = !trace.feedback;
+    clear(fb);
+    fb.className = 'expl' + (trace.feedbackKind ? ' ' + trace.feedbackKind : '');
+    if (trace.feedback) {
+      var sign = trace.feedbackKind === 'ok' ? '○ ' : (trace.feedbackKind === 'ng' ? '× ' : '');
+      fb.appendChild(el('p', sign + trace.feedback));
+    }
+
+    // エラー・最後
+    var done = $('tr-done');
+    clear(done);
+    done.hidden = !(last && (trace.run.error || atEnd));
+    if (last && trace.run.error) {
+      done.appendChild(el('b', trace.run.error.line + '行目でエラーです'));
+      done.appendChild(el('p', trace.run.error.message));
+    } else if (atEnd) {
+      done.appendChild(el('b', 'できました'));
+      done.appendChild(el('p', trace.mode === 'predict'
+        ? '予想の正解 ' + trace.correct + ' / ' + trace.asked + '（1回目で当たった数）'
+        : '最後まで見ました。「予想する」で、自分の力を試してみましょう。'));
+      var bar = el('div', null, 'row');
+      var again = el('button', 'もう一度', 'btn main');
+      again.type = 'button';
+      again.addEventListener('click', function () { resetTraceRun(); renderTraceRun(); });
+      var toList = el('button', '一覧へ', 'btn');
+      toList.type = 'button';
+      toList.addEventListener('click', backToTraceList);
+      bar.appendChild(again);
+      bar.appendChild(toList);
+      done.appendChild(bar);
+      if (p.bridge) done.appendChild(buildTraceBridge(p));
+    }
+
+    // ボタン
+    $('tr-reset').classList.toggle('main', atEnd);
+    $('tr-back').disabled = trace.idx === 0;
+    $('tr-next').disabled = last || trace.pending !== null;
+    $('tr-branch').disabled = last || trace.mode === 'predict';
+    $('tr-end').disabled = last || trace.mode === 'predict';
+  }
+
+  /**
+   * 「本番の形でも解いてみよう」（空欄を選ぶ問題）の欄を作る。最後まで進んだあとに出す。
+   * 同じプログラムの1行を空欄にして、選択肢から選ばせる。答えたら正解・解説を出し、成績に残す。
+   * @param {object} p 問題（bridge を持つもの）
+   * @returns {HTMLElement} 欄
+   */
+  function buildTraceBridge(p) {
+    var b = p.bridge;
+    var picked = trace.bridge.picked;
+    var wrap = el('div', null, 'bridge');
+    wrap.appendChild(el('b', '本番の形でも解いてみよう'));
+    wrap.appendChild(el('p', b.question));
+    var ol = el('ol', null, 'code');
+    p.code.split('\n').forEach(function (text, i) {
+      var no = i + 1;
+      var li = el('li', null, 'cl' + (no === b.line ? ' next' : ''));
+      li.appendChild(el('span', '', 'mk'));
+      li.appendChild(el('span', String(no), 'ln'));
+      li.appendChild(el('span', no === b.line ? b.template.replace('■', '［　　］') : (text === '' ? ' ' : text), 'tx'));
+      if (no === b.line) li.appendChild(el('span', '空欄', 'tag'));
+      ol.appendChild(li);
+    });
+    wrap.appendChild(ol);
+    var box = el('div', null, 'choices');
+    b.choices.forEach(function (text, i) {
+      var btn = el('button', null, 'choice' + (picked !== null && i === b.answerIndex ? ' right' : '') + (picked === i && i !== b.answerIndex ? ' wrong' : ''));
+      btn.type = 'button';
+      btn.disabled = picked !== null;
+      btn.appendChild(el('span', MARKS[i], 'k'));
+      btn.appendChild(el('span', text, 'ct'));
+      btn.appendChild(el('span', picked !== null && i === b.answerIndex ? '正解' : (picked === i ? 'あなたの答え' : ''), 'm'));
+      btn.addEventListener('click', function () { pickTraceBridge(i); });
+      box.appendChild(btn);
+    });
+    wrap.appendChild(box);
+    if (picked !== null) {
+      var ok = picked === b.answerIndex;
+      var ex = el('div', null, 'expl');
+      ex.appendChild(el('p', (ok ? '正解です。' : '不正解です。') + '正解は ' + MARKS[b.answerIndex] + ' です。'));
+      ex.appendChild(el('p', b.explain));
+      wrap.appendChild(ex);
+    }
+    return wrap;
+  }
+
+  /**
+   * 「本番の形」の選択肢を選んだ。正解かどうかを成績に残して、画面を描き直す。
+   * @param {number} i 選んだ選択肢の番号（0 から）
+   */
+  function pickTraceBridge(i) {
+    if (trace.bridge.picked !== null) return;
+    trace.bridge.picked = i;
+    traceProgress = T.recordBridge(traceProgress, trace.problem.id, i === trace.problem.bridge.answerIndex, Date.now());
+    saveTraceProgress();
+    renderTraceRun();
+    var shown = $('tr-done').querySelector('.bridge .expl');
+    if (shown) shown.scrollIntoView({ block: 'nearest' });
+  }
+
+  /** 予想の問題の欄を描く。問題がなければ隠す。 */
+  function renderTraceQuestion() {
+    var box = $('tr-question');
+    var pend = trace.pending;
+    box.hidden = !pend;
+    if (!pend) return;
+    var q = pend.q;
+    $('tr-q-title').textContent = q.kind === 'value'
+      ? q.line + '行目を実行すると、どうなる？'
+      : q.kind === 'index'
+        ? q.line + '行目を実行すると、配列 ' + q.name + ' の何番目の要素が変わる（増える）？'
+        : q.line + '行目を実行したあと、次に実行される行は？';
+    var inputs = $('tr-q-inputs');
+    // 入力欄は、描き直しても書きかけを消さないよう、問題が変わったときだけ作る
+    var qid = String(trace.idx);
+    if (inputs.dataset.qid !== qid) {
+      clear(inputs);
+      inputs.dataset.qid = qid;
+      if (q.kind === 'value') {
+        q.items.forEach(function (it) {
+          var row = el('label', null, 'qi');
+          row.appendChild(el('span', it.name + ' の値'));
+          var f = el('input', null, 'field');
+          f.type = 'text';
+          f.setAttribute('autocomplete', 'off');
+          f.addEventListener('keydown', function (e) { if (e.key === 'Enter') submitTraceAnswer(); });
+          row.appendChild(f);
+          inputs.appendChild(row);
+        });
+        if (q.items.some(function (it) { return typeof it.answer === 'string'; })) inputs.appendChild(el('p', '文字の値は、"B" のように " をつけても、B だけでもかまいません。', 'fine'));
+        if (q.items.some(function (it) { return typeof it.answer === 'boolean'; })) inputs.appendChild(el('p', '真偽は「真」か「偽」で答えます。', 'fine'));
+      } else if (q.kind === 'index') {
+        var rowI = el('label', null, 'qi');
+        rowI.appendChild(el('span', q.name + ' の何番目（数字）'));
+        var fi2 = el('input', null, 'field');
+        fi2.type = 'text';
+        fi2.setAttribute('inputmode', 'numeric');
+        fi2.setAttribute('autocomplete', 'off');
+        fi2.addEventListener('keydown', function (e) { if (e.key === 'Enter') submitTraceAnswer(); });
+        rowI.appendChild(fi2);
+        inputs.appendChild(rowI);
+        inputs.appendChild(el('p', '番号は 1 から数えます。配列の末尾に足す行なら、足されたあとの番号です。', 'fine'));
+      } else {
+        var row2 = el('label', null, 'qi');
+        row2.appendChild(el('span', '次の行'));
+        var sel = el('select', null, 'field');
+        trace.problem.code.split('\n').forEach(function (text, i) {
+          var o = el('option', (i + 1) + '行目　' + text.trim());
+          o.value = String(i + 1);
+          sel.appendChild(o);
+        });
+        var oe = el('option', 'プログラムの終わり');
+        oe.value = 'end';
+        sel.appendChild(oe);
+        row2.appendChild(sel);
+        inputs.appendChild(row2);
+      }
+      var first = inputs.querySelector('input,select');
+      if (first) first.focus({ preventScroll: true });
+    }
+    var ht = $('tr-q-hint-text');
+    ht.hidden = pend.hint < 2;
+    ht.textContent = pend.hint >= 2 ? 'ヒント: ' + trace.problem.hintText : '';
+    $('tr-q-hint').textContent = pend.hint === 0 ? 'ヒント（着目する行を光らせる）' : pend.hint === 1 ? 'ヒント（考え方）' : 'ヒントは以上です';
+    $('tr-q-hint').disabled = pend.hint >= 2;
+  }
+
+  /** 「次の1行へ」: 見るモードは1行進める。予想モードで問う行の前なら、先に問題を出す。 */
+  function traceNext() {
+    var steps = trace.run.steps;
+    if (trace.pending || trace.idx >= steps.length - 1) return;
+    trace.feedback = null;
+    trace.feedbackKind = null;
+    if (trace.mode === 'predict' && !trace.answered[trace.idx]) {
+      var q = T.predictQuestion(steps, trace.idx, trace.problem.predictLines);
+      if (q) {
+        trace.pending = { q: q, tries: 0, hint: 0 };
+        $('tr-q-inputs').dataset.qid = '';
+        renderTraceRun();
+        return;
+      }
+    }
+    trace.idx++;
+    afterTraceMove();
+  }
+
+  /** 1つ戻る（出している問題があれば、取りやめて戻る）。 */
+  function traceBack() {
+    if (trace.idx === 0) return;
+    trace.pending = null;
+    trace.feedback = null;
+    trace.feedbackKind = null;
+    trace.idx--;
+    renderTraceRun();
+  }
+
+  /**
+   * 次の分かれ道（条件を調べる行）まで、または最後まで進める（見るモードだけ）。
+   * @param {boolean} toEnd true なら最後まで、false なら次の分かれ道まで
+   */
+  function traceJump(toEnd) {
+    var steps = trace.run.steps;
+    if (trace.mode !== 'watch' || trace.idx >= steps.length - 1) return;
+    trace.feedback = null;
+    trace.feedbackKind = null;
+    var j = toEnd ? steps.length - 1 : trace.idx + 1;
+    while (!toEnd && j < steps.length - 1 && !steps[j].branch) j++;
+    trace.idx = j;
+    afterTraceMove();
+  }
+
+  /** 動いたあとの後始末: 最後まで進んだら成績に入れ、画面を描き直す。 */
+  function afterTraceMove() {
+    var steps = trace.run.steps;
+    if (trace.idx === steps.length - 1 && trace.run.finished && !trace.recorded) {
+      trace.recorded = true;
+      traceProgress = T.recordFinish(traceProgress, trace.problem.id,
+        { mode: trace.mode, asked: trace.asked, correct: trace.correct, missed: trace.missed }, Date.now());
+      saveTraceProgress();
+    }
+    renderTraceRun();
+  }
+
+  /** 「答える」: 答え合わせをする。はずれは1回だけやり直せる。 */
+  function submitTraceAnswer() {
+    var pend = trace.pending;
+    if (!pend) return;
+    var q = pend.q;
+    var fields = $('tr-q-inputs').querySelectorAll('input,select');
+    var ok;
+    var detail;
+    // 空欄や、数字を答える所に数字でない文字を入れたときは、はずれに数えず、入れ直してもらう
+    var bad = false;
+    fields.forEach(function (f, i) {
+      var v = String(f.value).trim();
+      var wantNumber = q.kind === 'index' || (q.kind === 'value' && typeof q.items[i].answer === 'number');
+      if (v === '' || (wantNumber && !T.isNumberText(v))) bad = true;
+    });
+    if (bad) {
+      trace.feedback = '入力を確かめてください（空欄、または数字で答える所に数字以外が入っています）。はずれには数えません。';
+      trace.feedbackKind = null;
+      renderTraceRun();
+      return;
+    }
+    if (q.kind === 'value') {
+      ok = q.items.every(function (it, i) { return T.matchValue(it.answer, fields[i].value); });
+      detail = '正しくは ' + q.items.map(function (it) { return it.name + ' ＝ ' + T.showValue(it.answer); }).join('、') +
+        '（' + q.items.map(function (it) { return T.explainValue(q.line, it); }).join('、') + '）';
+    } else if (q.kind === 'index') {
+      ok = String(fields[0].value).normalize('NFKC').trim() === String(q.answer);
+      detail = '正しくは ' + q.answer + ' 番目（' + q.line + '行目で ' + q.name + ' の ' + q.answer + ' 番目が書き換わる、または足されるため）';
+    } else {
+      var right = q.answer === null ? 'end' : String(q.answer);
+      ok = fields[0].value === right;
+      detail = '正しくは ' + (q.answer === null ? 'プログラムの終わり' : q.answer + '行目') + '（' + q.note + '）';
+    }
+    if (!ok && pend.tries === 0) {
+      pend.tries = 1;
+      trace.feedback = 'はずれです。もう一度だけ答えられます。ヒントも使えます。';
+      trace.feedbackKind = 'ng';
+      renderTraceRun();
+      return;
+    }
+    trace.asked++;
+    if (ok) {
+      if (pend.tries === 0) trace.correct++;
+      trace.feedback = pend.tries === 0 ? '当たり！' : '2回目で当たり。（成績には、1回目で当たった数だけ数えます）';
+      trace.feedbackKind = 'ok';
+    } else {
+      trace.missed.push(q.kind);
+      trace.feedback = 'はずれ。' + detail;
+      trace.feedbackKind = 'ng';
+    }
+    trace.answered[trace.idx] = true;
+    trace.pending = null;
+    trace.idx++;
+    afterTraceMove();
+  }
+
+  /** ヒントを1段階進める（1: 着目する行を光らせる、2: 考え方の一言）。 */
+  function traceHint() {
+    if (!trace.pending || trace.pending.hint >= 2) return;
+    trace.pending.hint++;
+    renderTraceRun();
+  }
+
+  /**
+   * 見る／予想するを切り替える。切り替えると、最初からやり直す。
+   * @param {string} mode 'watch' か 'predict'
+   */
+  function setTraceMode(mode) {
+    if (trace.mode === mode) return;
+    trace.mode = mode;
+    resetTraceRun();
+    renderTraceRun();
+  }
+
+  /** 一覧に戻る。 */
+  function backToTraceList() {
+    trace.problem = null;
+    trace.run = null;
+    renderTrace();
+  }
+
+  $('tr-reset').addEventListener('click', function () { resetTraceRun(); renderTraceRun(); });
+  $('tr-back').addEventListener('click', traceBack);
+  $('tr-next').addEventListener('click', traceNext);
+  $('tr-branch').addEventListener('click', function () { traceJump(false); });
+  $('tr-end').addEventListener('click', function () { traceJump(true); });
+  $('tr-q-submit').addEventListener('click', submitTraceAnswer);
+  $('tr-q-hint').addEventListener('click', traceHint);
+  $('tr-mode-watch').addEventListener('click', function () { setTraceMode('watch'); });
+  $('tr-mode-predict').addEventListener('click', function () { setTraceMode('predict'); });
+  $('tr-to-list').addEventListener('click', backToTraceList);
+
+  // キーボード: → で次へ、← で戻る。入力欄・選択欄の中、窓を開いている間は効かせない
+  document.addEventListener('keydown', function (e) {
+    if (currentView !== 'trace' || !trace.problem) return;
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    var tag = e.target && e.target.tagName;
+    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+    if (e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return;
+    if ($('guide-panel').open || $('zoom-dialog').open) return;
+    e.preventDefault();
+    if (e.key === 'ArrowRight') traceNext(); else traceBack();
+  });
 
   // ⑧ はじまり ------------------------------------------------------------
 
