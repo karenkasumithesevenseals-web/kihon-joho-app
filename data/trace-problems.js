@@ -6,6 +6,7 @@
  * 読み方: 1問が { id, title, learn, code, notes, expected, predictLines, hintLines, hintText }。
  *   id          問題の名前（成績の保存にも使うので、あとから変えない）
  *   title       一覧に出す題名
+ *   level       むずかしさの印（'入門' / '基本' / '応用'。一覧の題名のうしろに出す）
  *   learn       この問題で学ぶこと（一覧と結果に出す）
  *   code        擬似言語のプログラム（1行目が1行、と数える。空行も1行）
  *   notes       行ごとの説明 [{ line: 行番号, text: 1文の説明, cDiff: true なら「C言語とちがう」の印 }]
@@ -22,6 +23,7 @@
 const TRACE_PROBLEMS = [
   {
     id: 'swap',
+    level: '入門',
     title: '2つの値を入れ替える',
     learn: '代入は「右の値を左に入れる」。入れ替えには一時的な入れ物（一時変数）がいる。',
     code: [
@@ -47,6 +49,7 @@ const TRACE_PROBLEMS = [
   },
   {
     id: 'grade',
+    level: '入門',
     title: '点数から評価を決める',
     learn: 'if / elseif / else は、上から調べて「最初に真になった所」だけを実行する。',
     code: [
@@ -82,6 +85,7 @@ const TRACE_PROBLEMS = [
   },
   {
     id: 'sum5',
+    level: '入門',
     title: '1 から 5 までの合計',
     learn: 'for は、終わりの値も含めて繰り返す。（終わったあとの i の値は、本番では当てにしない。ここでは動きの確認のために表に出しています。）',
     code: [
@@ -114,6 +118,7 @@ const TRACE_PROBLEMS = [
   },
   {
     id: 'mod-rest',
+    level: '基本',
     title: '引き算の繰り返しで余りを出す',
     learn: 'while は、繰り返す前に条件を調べる。条件が偽になったところで、繰り返しを終わる。',
     code: [
@@ -150,6 +155,7 @@ const TRACE_PROBLEMS = [
   },
   {
     id: 'array-sum',
+    level: '基本',
     title: '配列の合計',
     learn: '配列の番号は 1 から始まる。dataの要素数 は、配列の個数。',
     code: [
@@ -175,6 +181,7 @@ const TRACE_PROBLEMS = [
   },
   {
     id: 'array-max',
+    level: '基本',
     title: '配列の最大値',
     learn: '「いままでで一番大きい値」を変数に持ち、大きいものが見つかったら入れ替える。',
     code: [
@@ -213,6 +220,7 @@ const TRACE_PROBLEMS = [
   },
   {
     id: 'linear-search',
+    level: '基本',
     title: '配列から値を探す（線形探索）',
     learn: '見つかったら「繰り返し処理を終了する」で途中で抜ける。pos の最初の値 0 は「まだ見つかっていない」目印。',
     code: [
@@ -255,6 +263,7 @@ const TRACE_PROBLEMS = [
   },
   {
     id: 'move-last',
+    level: '基本',
     title: '末尾の値を先頭へ移す',
     learn: '後ろから順にずらす。前からずらすと、同じ値で上書きされてしまう。',
     code: [
@@ -291,6 +300,7 @@ const TRACE_PROBLEMS = [
   },
   {
     id: 'char-count',
+    level: '基本',
     title: '文字を数える',
     learn: '1 文字ずつの文字列を並べた配列を、順に調べる。文字の比較も「＝」。（本番では、問題文の説明に従う。）',
     code: [
@@ -322,6 +332,7 @@ const TRACE_PROBLEMS = [
   },
   {
     id: 'binary-search',
+    level: '応用',
     title: '二分探索',
     learn: '真ん中を調べて、探す範囲を半分にしていく。÷ は、整数どうしなら商（切り捨て）。',
     code: [
@@ -376,6 +387,7 @@ const TRACE_PROBLEMS = [
   },
   {
     id: 'stack',
+    level: '応用',
     title: 'スタック（積み上げ）',
     learn: '最後に入れたものを最初に取り出す（後入れ先出し）。関数の外の「大域:」の変数は、関数から書き換えられる。',
     code: [
@@ -432,6 +444,7 @@ const TRACE_PROBLEMS = [
   },
   {
     id: 'factorial',
+    level: '応用',
     title: '階乗（再帰）',
     learn: '関数が自分自身を呼ぶ（再帰）。呼び出しごとに引数 n は別の入れ物になる。',
     code: [
@@ -468,6 +481,7 @@ const TRACE_PROBLEMS = [
   },
   {
     id: 'bubble',
+    level: '応用',
     title: '4つの値を小さい順に並べる（発展）',
     learn: '隣どうしを比べて、逆になっていたら入れ替える。これを繰り返すと並ぶ。ステップが多いので「次の分かれ道まで」が便利。',
     code: [

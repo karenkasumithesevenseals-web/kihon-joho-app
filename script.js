@@ -315,6 +315,8 @@
 
   var session = null;
   var currentView = 'home';
+  /** ホームの大きなボタンが「今日の復習」か（false なら「新しい問題を始める」）。renderHome が決める。 */
+  var homeHasDue = false;
 
   /**
    * 指定の画面を出して、中身を描き直す。
@@ -376,6 +378,15 @@
     var results = L.collectQuestionResults(answers);
     var due = L.collectDueQuestionIds(results, now).filter(function (id) { return byId[id]; });
     $('due-count').textContent = String(due.length);
+    homeHasDue = due.length > 0;
+    $('due-count').hidden = !homeHasDue;
+    // 復習が 0件のとき、大きなボタンは「新しい問題を始める」になる（押すと科目A のぜんぶ混ぜて）
+    $('review-title').textContent = homeHasDue ? '今日の復習' : '新しい問題を始める';
+    $('review-note').textContent = homeHasDue
+      ? '忘れたころの問題（1日後→3日後→7日後→14日後に再び出ます）。正解すると間隔が延び、間違えると明日に戻ります。'
+      : '今日の復習はありません。科目A の問題を、ぜんぶ混ぜて出します。';
+    // まだ 1問も解いていない人にだけ、はじめの手順を出す
+    $('start-guide').hidden = answers.length > 0;
 
     var days = L.daysUntil(settings.targetDate, now);
     $('target-text').textContent = days === null
@@ -398,8 +409,8 @@
     var tilesB = $('home-tiles-b');
     clear(tilesB);
     var unseenB = QUESTIONS_B.filter(function (q) { return !results.has(q.id); }).length;
-    tilesB.appendChild(makeTile('科目B 令和8年度の公開問題',
-      '長めのプログラムを読んで、空欄に入る答えを選びます。公開されているのは 6問です。未回答 ' + unseenB + '問 ／ 全 ' + QUESTIONS_B.length + '問',
+    tilesB.appendChild(makeTile('科目B 令和8年度の公開問題（' + QUESTIONS_B.length + '問だけ・本番は 20問）',
+      '長めのプログラムを読んで、空欄に入る答えを選びます。未回答 ' + unseenB + '問 ／ 全 ' + QUESTIONS_B.length + '問',
       { type: 'category', value: 'subjectB' }));
     var tilesT = $('home-tiles-trace');
     clear(tilesT);
@@ -632,11 +643,11 @@
       judge.appendChild(el('b', 'まだ判定できません'));
       judge.appendChild(el('p', '初めて見た問題を、あと ' + est.needed + '問 解くと、合格の目安が出ます。', 'fine'));
     } else {
-      judge.appendChild(el('span', '練習の目安', 'fine'));
-      judge.appendChild(el('div', est.gapPercent === 0 ? '合格の目安に届いています' : '合格の目安まで あと ' + est.gapPercent + '%', 'judge-main'));
+      judge.appendChild(el('b', '科目Aの練習の目安（本番の判定ではありません）'));
+      judge.appendChild(el('div', est.gapPercent === 0 ? '練習の線（60%）を超えています' : '練習の線（60%）まで あと ' + est.gapPercent + '%', 'judge-main'));
       judge.appendChild(el('p', '初めて見た問題の正答率 ' + Math.round(est.rate * 100) + '%（直近 ' + est.sampleSize + '問）。', 'fine'));
     }
-    judge.appendChild(el('p', '本番の合格には、科目A と 科目B の両方で 600点以上（1000点満点）が必要です。この目安は、科目A だけの練習用で、60% は点数ではなく仮の線です。科目B の成績は入っていません。', 'fine'));
+    judge.appendChild(el('p', '本番の合格には、科目A と 科目B の両方で 600点以上（1000点満点）が必要です。この目安は、科目A だけの練習用で、60% は点数ではなく仮の線です。科目B の成績は入っていません。', 'note'));
 
     var acc = L.accuracyByGroup(results, QUESTIONS);
     var cat = $('stats-cat');
@@ -1115,7 +1126,7 @@
       var st = T.problemStatus(traceProgress, p.id, now);
       var b = el('button', null, 'tile');
       b.type = 'button';
-      b.appendChild(el('b', (i + 1) + '. ' + p.title));
+      b.appendChild(el('b', (i + 1) + '. ' + p.title + (p.level ? '（' + p.level + '）' : '')));
       b.appendChild(el('span', p.learn));
       b.appendChild(el('span', '状態: ' + st.label + (st.again ? '　・　3日以上たちました。もう一度やってみましょう' : '')));
       b.addEventListener('click', function () { openTrace(p.id); });
@@ -1586,7 +1597,8 @@
       if (b.dataset.go === 'quiz') openQuiz(); else showView(b.dataset.go);
     });
   });
-  $('btn-review').addEventListener('click', function () { startSession({ type: 'review' }); });
+  $('btn-review').addEventListener('click', function () { startSession(homeHasDue ? { type: 'review' } : { type: 'all' }); });
+  $('tr-guide').addEventListener('click', openGuide);
   $('btn-exam-start').addEventListener('click', startExam);
   $('btn-exam-resume').addEventListener('click', function () { showView('exam'); });
   $('btn-exam-discard').addEventListener('click', discardExam);
