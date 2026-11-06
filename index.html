@@ -32,11 +32,22 @@
             <li>慣れたら「模擬試験」に挑戦しましょう。</li>
           </ol>
         </div>
+        <!-- 今日の1問（軽いカード）。達成前は「はじめる」、達成後は1行に畳む -->
+        <div class="card daily" id="daily-card" hidden>
+          <div class="daily-top"><b>今日の1問</b><span class="tag" id="daily-badge"></span></div>
+          <p class="fine" id="daily-sub"></p>
+          <p class="daily-streak" id="daily-streak"></p>
+          <p class="fine" id="daily-best"></p>
+          <div class="row">
+            <button type="button" class="btn main" id="daily-start">1問だけ、はじめる</button>
+            <button type="button" class="linkbtn" id="daily-again" hidden>もう一度見る</button>
+          </div>
+        </div>
         <button type="button" class="pri" id="btn-review">
           <span class="pri-text"><b id="review-title">今日の復習</b><small id="review-note">忘れたころの問題（1日後→3日後→7日後→14日後に再び出ます）。正解すると間隔が延び、間違えると明日に戻ります。</small></span>
           <span class="big" id="due-count">0</span>
         </button>
-        <div class="card"><dl class="kv"><dt>目標日</dt><dd id="target-text"></dd><dt>今日の目標</dt><dd id="today-text"></dd></dl></div>
+        <div class="card"><dl class="kv"><dt>目標日</dt><dd id="target-text"></dd><dt>今日の目標</dt><dd id="today-text"></dd><dt>今日の1問</dt><dd id="daily-text"></dd></dl></div>
         <h2 class="sub-title">科目A（四択）</h2>
         <div class="grid" id="home-tiles"></div>
         <h2 class="sub-title">模擬試験</h2>
@@ -83,6 +94,12 @@
               <div class="qside">
                 <div class="expl" id="q-expl" hidden aria-live="polite"><b id="q-verdict"></b><p id="q-expl-text"></p></div>
                 <div class="card"><dl class="kv"><dt>次の復習</dt><dd id="q-next"></dd></dl></div>
+                <!-- 今日の1問を解いたあとだけ出す：調べるための文をコピーする -->
+                <div class="card" id="q-research" hidden>
+                  <button type="button" class="btn" id="q-copy">この問題を調べる文をコピー</button>
+                  <p class="fine" id="q-copy-note" aria-live="polite">PCの Claude Code に貼ると、調べて Obsidian に残せます。</p>
+                  <textarea class="copybox" id="q-copy-box" readonly rows="6" aria-label="調べる文（長押しでコピーできます）" hidden></textarea>
+                </div>
                 <div class="row"><button type="button" class="btn" id="q-large">文字を大きく</button></div>
               </div>
             </div>
@@ -259,6 +276,7 @@
 <script src="data/questions-r07.js"></script>
 <script src="data/questions-r08.js"></script>
 <script src="data/questions-r08b.js"></script>
+<script src="data/daily-order.js"></script>
 <script src="data/trace-problems.js"></script>
 <script src="logic.js"></script>
 <script src="trace-logic.js"></script>

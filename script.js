@@ -17,7 +17,10 @@
   var QUESTIONS_B = FE_QUESTIONS_R08B;
   /** 科目A と科目B を合わせた一覧。履歴から問題を引くとき（byId）と、今日の復習だけが使う。 */
   var QUESTIONS_ALL = QUESTIONS.concat(QUESTIONS_B);
-  var KEYS = { answers: 'feAnswers', settings: 'feSettings', device: 'feDeviceId', exam: 'feExamState', trace: 'feTraceProgress' };
+  var KEYS = { answers: 'feAnswers', settings: 'feSettings', device: 'feDeviceId', exam: 'feExamState', trace: 'feTraceProgress', marks: 'feStudyMarks' };
+  /** 「今日の1問」の並び（科目Aの問題ID）。決めてある並びを土台に、新しい問題は末尾に足される。 */
+  var DAILY_ORDERED = FeLogic.dailyOrderIds(typeof FE_DAILY_ORDER !== 'undefined' ? FE_DAILY_ORDER : [], QUESTIONS.map(function (q) { return q.id; }));
+  var DAILY_START_NUM = FeLogic.dayNumberOfString(FeLogic.DAILY_START);
   /** 選択肢の記号。科目A は4つ（ア〜エ）、科目B は最大10個（ア〜コ）。 */
   var MARKS = ['ア', 'イ', 'ウ', 'エ', 'オ', 'カ', 'キ', 'ク', 'ケ', 'コ'];
   var DAILY_GOAL = 20;
@@ -398,6 +401,8 @@
     today.appendChild(document.createTextNode(DAILY_GOAL + '問　'));
     today.appendChild(el('span', Math.min(L.countAnswersOnDay(answers, now), DAILY_GOAL) + ' / ' + DAILY_GOAL + ' 完了', 'tag'));
 
+    renderDaily(now);
+
     var tiles = $('home-tiles');
     clear(tiles);
     Object.keys(L.CATEGORY_LABELS).forEach(function (cat) {
@@ -421,6 +426,124 @@
     tb.addEventListener('click', function () { showView('trace'); });
     tilesT.appendChild(tb);
     renderExamCard();
+  }
+
+  // ④-2 今日の1問 ----------------------------------------------------------
+
+  /**
+   * 今日の1問の状況（今日の問題・達成したか・連続日数・最長）を、回答の記録から計算する。
+   * @param {number} now 今の時刻（ミリ秒）
+   * @returns {object} FeLogic.dailyStatus の結果
+   */
+  function dailyNow(now) {
+    return L.dailyStatus(answers, function (d) {
+      return L.dailyQuestionIdForDay(DAILY_ORDERED, d, DAILY_START_NUM);
+    }, DAILY_START_NUM, now);
+  }
+
+  /**
+   * ホームの「今日の1問」カードと、目標カードの「今日の1問」の行を描く。
+   * 達成前は「はじめる」ボタン、達成後は1行に畳んで「もう一度見る」だけにする。
+   * @param {number} now 今の時刻（ミリ秒）
+   */
+  function renderDaily(now) {
+    var card = $('daily-card');
+    var st = dailyNow(now);
+    var q = st.todayId ? byId[st.todayId] : null;
+    if (!q || L.dayNumber(now) < DAILY_START_NUM) { card.hidden = true; $('daily-text').textContent = '―'; return; }
+    card.hidden = false;
+    card.classList.toggle('folded', st.doneToday);
+    var badge = $('daily-badge');
+    badge.textContent = st.doneToday ? '達成 ✓' : '未';
+    badge.className = 'tag' + (st.doneToday ? ' ok' : '');
+    $('daily-sub').textContent = '分野：' + q.sub;
+    $('daily-sub').hidden = st.doneToday;
+    var streak = $('daily-streak');
+    clear(streak);
+    if (st.current > 0) {
+      streak.appendChild(document.createTextNode('連続 '));
+      streak.appendChild(el('strong', String(st.current)));
+      streak.appendChild(document.createTextNode(' 日'));
+    } else if (st.everDone) {
+      streak.appendChild(document.createTextNode('おかえりなさい。今日から '));
+      streak.appendChild(el('strong', '1'));
+      streak.appendChild(document.createTextNode(' 日目です'));
+    } else {
+      streak.appendChild(document.createTextNode('はじめましょう。今日が '));
+      streak.appendChild(el('strong', '1'));
+      streak.appendChild(document.createTextNode(' 日目です'));
+    }
+    // 最長記録は、いまの連続より長いときだけ出す（同じ数字を2回見せない）
+    var showBest = st.longest > st.current;
+    $('daily-best').textContent = showBest ? '最長記録 ' + st.longest + ' 日' : '';
+    $('daily-best').hidden = !showBest;
+    $('daily-start').hidden = st.doneToday;
+    $('daily-again').hidden = !st.doneToday;
+    $('daily-text').textContent = st.doneToday ? '済 ✓' : 'まだ';
+  }
+
+  /** 今日の1問を始める（今日の問題が決まっていれば、その1問だけの問題画面を出す）。 */
+  function startDaily() {
+    var st = dailyNow(Date.now());
+    if (!st.todayId || !byId[st.todayId]) return;
+    session = {
+      filter: { type: 'daily' }, ids: [st.todayId],
+      index: 0, correct: 0, picked: -1, answered: false, wasSeen: false, ok: false, nextText: '', builtIndex: -1
+    };
+    showView('quiz');
+  }
+
+  /**
+   * メールのリンク（?daily=日付）で開かれたときの動き。
+   * 今日の1問がまだなら、問題画面へ直行する。達成ずみならホームのまま（カードに「達成」と出る）。
+   * 読んだあとは、アドレスの「?」以降を消す（画面を更新するたびにやり直さないため）。
+   */
+  function handleDailyLink() {
+    var params = new URLSearchParams(location.search);
+    if (!params.has('daily')) return;
+    try { history.replaceState(null, '', location.pathname + location.hash); } catch (e) { /* 消せなくても動く */ }
+    if (!dailyNow(Date.now()).doneToday) startDaily();
+  }
+
+  /**
+   * 「調べたい」の印を、端末だけに残す（クラウドには送らない）。保存してある中身が読めないときは上書きしない。
+   * @param {string} qid 問題ID
+   */
+  function markStudy(qid) {
+    var obj = {};
+    var text = readStorage(KEYS.marks);
+    if (text) {
+      try { obj = JSON.parse(text); } catch (e) { return; }
+      if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return;
+    }
+    obj[qid] = L.dayString(L.dayNumber(Date.now()));
+    writeStorage(KEYS.marks, JSON.stringify(obj));
+  }
+
+  /** 「この問題を調べる文をコピー」。コピーできなければ、長押しでコピーできる文章欄を出す。 */
+  function copyResearch() {
+    if (!session || !session.answered) return;
+    var q = byId[session.ids[session.index]];
+    var text = L.buildResearchPrompt(q, session.picked, MARKS);
+    markStudy(q.id);
+    var btn = $('q-copy'), note = $('q-copy-note'), box = $('q-copy-box');
+    var normalNote = 'PCの Claude Code に貼ると、調べて Obsidian に残せます。';
+    function succeeded() {
+      btn.textContent = 'コピーしました ✓';
+      note.textContent = normalNote;
+      setTimeout(function () { btn.textContent = 'この問題を調べる文をコピー'; }, 2500);
+    }
+    function failed() {
+      box.value = text;
+      box.hidden = false;
+      note.textContent = 'コピーできませんでした。下の文を長押しして、コピーしてください。';
+      box.focus();
+      box.select();
+    }
+    try {
+      if (!navigator.clipboard || !navigator.clipboard.writeText) { failed(); return; }
+      navigator.clipboard.writeText(text).then(succeeded, failed);
+    } catch (e) { failed(); }
   }
 
   // ⑤ 問題 ----------------------------------------------------------------
@@ -527,7 +650,15 @@
     $('q-bnote').hidden = !isB;
     if (!isB) closeGuide();
     $('q-expl-text').className = isB ? 'pre' : '';
-    $('q-tag').textContent = session.wasSeen ? '復習' : '新しい問題';
+    var isDaily = session.filter.type === 'daily';
+    $('q-tag').textContent = isDaily ? '今日の1問' : (session.wasSeen ? '復習' : '新しい問題');
+    if (isNewQuestion) {
+      // 調べる文の欄を、新しい問題のために元に戻す
+      $('q-copy').textContent = 'この問題を調べる文をコピー';
+      $('q-copy-note').textContent = 'PCの Claude Code に貼ると、調べて Obsidian に残せます。';
+      $('q-copy-box').hidden = true;
+    }
+    $('q-research').hidden = !(isDaily && session.answered);
     $('q-text').textContent = q.text;
     $('q-source').textContent = q.isSample
       ? '画面確認用の架空の問題です。'
@@ -543,7 +674,7 @@
       $('q-verdict').textContent = (session.ok ? '正解です。' : '不正解です。') + '正解は ' + MARKS[q.answerIndex] + ' です。';
       $('q-expl-text').textContent = q.explanation;
       $('q-next').textContent = session.nextText;
-      submit.textContent = session.index + 1 >= session.ids.length ? '結果を見る' : '次の問題へ';
+      submit.textContent = isDaily ? 'ホームへ' : (session.index + 1 >= session.ids.length ? '結果を見る' : '次の問題へ');
       submit.disabled = false;
     } else {
       expl.hidden = true;
@@ -588,6 +719,11 @@
       if (ok) session.correct += 1;
       var r = L.collectQuestionResults(answers).get(q.id);
       session.nextText = ok ? L.reviewIntervalDays(r.streak) + '日後（' + r.streak + '回続けて正解）' : '明日（最初からやり直し）';
+    } else if (session.filter.type === 'daily') {
+      // 今日の1問は1問だけ。解説を読んだら、ホームへ戻る
+      session = null;
+      showView('home');
+      return;
     } else {
       session.index += 1;
       session.picked = -1;
@@ -1608,6 +1744,11 @@
   $('x-mark').addEventListener('click', toggleExamMark);
   $('x-finish').addEventListener('click', onExamFinishClick);
   $('q-submit').addEventListener('click', onSubmit);
+  $('daily-start').addEventListener('click', startDaily);
+  $('daily-again').addEventListener('click', startDaily);
+  $('q-copy').addEventListener('click', copyResearch);
+  // 開いたまま日付が変わったときのために、画面に戻ったらホームを描き直す
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && currentView === 'home') renderHome(); });
   $('q-guide').addEventListener('click', openGuide);
   $('guide-close').addEventListener('click', closeGuide);
   $('zoom-close').addEventListener('click', closeZoom);
@@ -1644,5 +1785,6 @@
   applySettings();
   loadExam();
   showView('home');
+  handleDailyLink();
   startSync();
 })();

@@ -566,7 +566,156 @@ const FeLogic = (function () {
     return out;
   }
 
+  // 今日の1問（計画9） -----------------------------------------------------
+
+  /** 「今日の1問」の最初の日（この日が並びの1番目）。これより前の日は数えない。 */
+  var DAILY_START = '2026-11-07';
+
+  /**
+   * 時刻（ミリ秒）を「日番号」にする。端末の時間帯のカレンダーの日付を、通し番号（整数）にしたもの。
+   * 夏時間などの影響を受けず、日どうしの差は引き算で出せる。
+   * @param {number} ms 時刻（ミリ秒）
+   * @returns {number} 日番号
+   */
+  function dayNumber(ms) {
+    var d = new Date(ms);
+    return Math.round(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / DAY_MS);
+  }
+
+  /**
+   * 「2026-11-07」の形の日付を日番号にする。
+   * @param {string} str 日付の文字
+   * @returns {number|null} 日番号。日付でなければ（2026-02-31 なども）null
+   */
+  function dayNumberOfString(str) {
+    if (typeof str !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(str)) return null;
+    var p = str.split('-').map(Number);
+    var ms = Date.UTC(p[0], p[1] - 1, p[2]);
+    if (!isFinite(ms) || new Date(ms).toISOString().slice(0, 10) !== str) return null;
+    return Math.round(ms / DAY_MS);
+  }
+
+  /**
+   * 日番号を「2026-11-07」の形の文字にする。
+   * @param {number} num 日番号
+   * @returns {string} 日付の文字
+   */
+  function dayString(num) {
+    return new Date(num * DAY_MS).toISOString().slice(0, 10);
+  }
+
+  /**
+   * 「今日の1問」の並びを決める。決めてある並び（order）を土台にして、
+   * 問題データにない ID は除き、並びにない新しい問題は「末尾」に ID の順で足す（過去の日の問題が変わらないように）。
+   * @param {string[]} order 決めてある並び（問題ID）
+   * @param {string[]} questionIds いま出題できる問題の ID
+   * @returns {string[]} 使う並び
+   */
+  function dailyOrderIds(order, questionIds) {
+    var known = {};
+    questionIds.forEach(function (id) { known[id] = true; });
+    var seen = {};
+    var out = [];
+    (order || []).forEach(function (id) {
+      if (known[id] && !seen[id]) { seen[id] = true; out.push(id); }
+    });
+    questionIds.slice().sort().forEach(function (id) {
+      if (!seen[id]) { seen[id] = true; out.push(id); }
+    });
+    return out;
+  }
+
+  /**
+   * ある日の「今日の1問」の問題ID を返す。最後まで行ったら最初に戻る。
+   * @param {string[]} ordered dailyOrderIds の結果
+   * @param {number} dayNum その日の日番号
+   * @param {number} startNum 最初の日の日番号
+   * @returns {string|null} 問題ID。問題が1つもなければ null
+   */
+  function dailyQuestionIdForDay(ordered, dayNum, startNum) {
+    var n = ordered.length;
+    if (n === 0) return null;
+    return ordered[(((dayNum - startNum) % n) + n) % n];
+  }
+
+  /**
+   * 「今日の1問」の達成の状況を、回答の記録から毎回計算する（連続日数は保存しない）。
+   * 達成の条件: その日の「今日の1問」の問題に、その日のうちに答えた記録がある（正解・不正解や、どの画面で答えたかは問わない）。
+   * 連続日数: 今日が未達成なら、昨日までの連続を数える（朝に0へ戻さない）。
+   * @param {object[]} answers 回答の記録の一覧
+   * @param {function} idForDay 日番号から、その日の問題IDを返す関数
+   * @param {number} startNum 最初の日の日番号
+   * @param {number} nowMs 今の時刻（ミリ秒）
+   * @returns {{todayId:(string|null), doneToday:boolean, current:number, longest:number, everDone:boolean}}
+   *   current: いまの連続日数 / longest: これまでの最長 / everDone: 1日でも達成したことがあるか
+   */
+  function dailyStatus(answers, idForDay, startNum, nowMs) {
+    var today = dayNumber(nowMs);
+    var done = {};
+    answers.forEach(function (a) {
+      var d = dayNumber(a.at);
+      if (d < startNum || d > today) return;
+      if (idForDay(d) === a.qid) done[d] = true;
+    });
+    var days = Object.keys(done).map(Number).sort(function (x, y) { return x - y; });
+    var longest = 0, run = 0, prev = null;
+    days.forEach(function (d) {
+      run = (prev !== null && d === prev + 1) ? run + 1 : 1;
+      if (run > longest) longest = run;
+      prev = d;
+    });
+    var doneToday = !!done[today];
+    var d2 = doneToday ? today : today - 1;
+    var current = 0;
+    while (done[d2]) { current += 1; d2 -= 1; }
+    return { todayId: idForDay(today), doneToday: doneToday, current: current, longest: longest, everDone: days.length > 0 };
+  }
+
+  /**
+   * 問題IDから「令和6年度 科目A 問12」の形の呼び名を作る。形が合わなければ ID そのまま。
+   * @param {string} id 問題ID（R06A_Q12 の形）
+   * @returns {string} 呼び名
+   */
+  function questionLabel(id) {
+    var m = /^R(\d{2})([AB])_Q(\d{2})$/.exec(id || '');
+    if (!m) return String(id || '');
+    return '令和' + Number(m[1]) + '年度 科目' + m[2] + ' 問' + Number(m[3]);
+  }
+
+  /**
+   * 「この問題を調べて」とAIに頼む文を作る（Claude Code に貼る用）。
+   * @param {object} q 問題（id, sub, text, choices, answerIndex）
+   * @param {number} picked 自分が選んだ選択肢の番号（未回答なら -1）
+   * @param {string[]} marks 選択肢の記号（['ア','イ',…]）
+   * @returns {string} 頼む文
+   */
+  function buildResearchPrompt(q, picked, marks) {
+    var lines = [];
+    lines.push('【基本情報 今日の1問】' + questionLabel(q.id) + '（分野：' + q.sub + '）');
+    lines.push('問題：' + q.text);
+    q.choices.forEach(function (c, i) { lines.push(marks[i] + '．' + c); });
+    if (picked >= 0 && picked < q.choices.length) {
+      lines.push('自分の答え：' + marks[picked] + '（' + (picked === q.answerIndex ? '正解' : '不正解。正解は' + marks[q.answerIndex]) + '）');
+    } else {
+      lines.push('自分の答え：まだ答えていない');
+    }
+    lines.push('');
+    lines.push('お願い：この問題でわからない用語・仕組みを、公式の資料（IPA など）で調べて、やさしく説明してください。');
+    lines.push('調べた内容は、スキル shikaku-memo の手順で Obsidian の 共有メモ\\資格\\基本情報\\ に保存してください。');
+    lines.push('メモには「一言で言うと」「他の選択肢がなぜ違うか」を入れ、「自分の言葉でまとめ」の欄は私が書くので空けておいてください。');
+    return lines.join('\n');
+  }
+
   return {
+    DAILY_START: DAILY_START,
+    dayNumber: dayNumber,
+    dayNumberOfString: dayNumberOfString,
+    dayString: dayString,
+    dailyOrderIds: dailyOrderIds,
+    dailyQuestionIdForDay: dailyQuestionIdForDay,
+    dailyStatus: dailyStatus,
+    questionLabel: questionLabel,
+    buildResearchPrompt: buildResearchPrompt,
     CATEGORY_LABELS: CATEGORY_LABELS,
     reviewIntervalDays: reviewIntervalDays,
     makeAnswerId: makeAnswerId,

@@ -234,3 +234,16 @@ dialog.guide[open],dialog.zoom[open]{display:flex;flex-direction:column}
   .app.guide-open .qmain{max-width:none;width:100%}
   .app.guide-open .qside{width:100%}
 }
+
+/* 今日の1問（計画9）: 「今日の復習」より軽い、枠線のカード */
+.daily{border-color:var(--accent)}
+.daily-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.daily-top .tag{font-size:14px}
+.daily-top .tag.ok{background:var(--ok-soft);color:var(--ok)}
+.daily-streak{margin:6px 0 4px;font-size:16px}
+.daily-streak strong{font-family:var(--mono);font-size:1.25em}
+.daily .row{margin-top:8px}
+.daily.folded .daily-streak{margin-bottom:0}
+.linkbtn{font:inherit;font-size:14px;color:var(--accent);background:none;border:0;padding:12px 4px;min-height:48px;text-decoration:underline;cursor:pointer}
+.linkbtn:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.copybox{width:100%;margin-top:8px;font:inherit;font-size:14px;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--card);color:var(--ink);resize:vertical}
